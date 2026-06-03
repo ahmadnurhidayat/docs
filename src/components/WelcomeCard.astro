@@ -1,0 +1,204 @@
+---
+---
+
+<div class="welcome-container">
+  <div class="welcome-card">
+    <h1>Welcome to docs</h1>
+    <p class="intro-lead">Documenting everything so future me stops asking <b>ChatGPT</b> the same question twice.</p>
+    <p class="intro-sub">Well… not everything. Only the topics I actually care enough to revisit. If I had to ask twice, it deserves a blog post.</p>
+    
+    <div class="features-section">
+      <h3 class="features-heading">Features</h3>
+      <div class="features-grid">
+        <div class="feature-card">
+          <i class="fa-solid fa-code feature-icon"></i>
+          <strong>Syntax Highlighting</strong>
+        </div>
+        <div class="feature-card">
+          <i class="fa-solid fa-copy feature-icon"></i>
+          <strong>One-click Copy</strong>
+        </div>
+        <div class="feature-card">
+          <i class="fa-solid fa-magnifying-glass feature-icon"></i>
+          <strong>Live Search</strong>
+        </div>
+        <div class="feature-card">
+          <i class="fa-solid fa-bars-progress feature-icon"></i>
+          <strong>Reading Progress</strong>
+        </div>
+        <div class="feature-card">
+          <i class="fa-solid fa-arrow-right-arrow-left feature-icon"></i>
+          <strong>Width Toggle</strong>
+        </div>
+        <div class="feature-card">
+          <i class="fa-solid fa-text-height feature-icon"></i>
+          <strong>Font Size Control</strong>
+        </div>
+        <div class="feature-card">
+          <i class="fa-solid fa-moon feature-icon"></i>
+          <strong>Dark & Light Mode</strong>
+        </div>
+        <div class="feature-card">
+          <i class="fa-solid fa-chevron-left feature-icon"></i>
+          <strong>Prev / Next Navigation</strong>
+        </div>
+      </div>
+    </div>
+    
+    <div class="ai-disclaimer">
+      <i class="fa-solid fa-robot ai-disclaimer-icon"></i>
+      <p>All content researched with AI. I asked the questions. It answered. We both pretended to be sure.</p>
+    </div>
+  </div>
+</div>
+
+<style>
+  .welcome-container {
+    max-width: var(--reading-max-width);
+    width: 100%;
+    margin-top: 2rem;
+    padding-bottom: 4rem;
+  }
+
+  .welcome-card {
+    padding: 2.5rem 0 1.5rem 0;
+  }
+
+  .welcome-card h1 {
+    font-family: var(--font-interface);
+    font-size: 2.85rem;
+    font-weight: 800;
+    margin-bottom: 1rem;
+    line-height: 1.15;
+    color: var(--text-active);
+    letter-spacing: -0.03em;
+  }
+
+  .welcome-card .intro-lead {
+    color: var(--text-main);
+    font-family: var(--font-reading);
+    font-size: 1.35rem;
+    line-height: 1.6;
+    margin-bottom: 1.25rem;
+    font-weight: 400;
+  }
+
+  .welcome-card .intro-lead b {
+    font-weight: 600;
+    color: var(--accent);
+  }
+
+  .welcome-card .intro-sub {
+    color: var(--text-muted);
+    font-size: 1.05rem;
+    line-height: 1.7;
+    margin-bottom: 2.5rem;
+  }
+
+  .features-section {
+    border-top: 1px solid var(--border-color);
+    padding-top: 2.5rem;
+    margin-top: 1rem;
+  }
+
+  .features-heading {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    margin-bottom: 1.5rem;
+  }
+
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 1rem;
+    margin-bottom: 3rem;
+  }
+
+  .feature-card {
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+    padding: 1.1rem 1.25rem;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    background-color: var(--bg-card);
+    transition: border-color 0.25s ease, background-color 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
+    user-select: none;
+  }
+
+  .feature-card:hover {
+    border-color: var(--accent);
+    background-color: var(--accent-glow);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.03);
+  }
+
+  html.dark-mode .feature-card:hover {
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+  }
+
+  .feature-icon {
+    color: var(--accent);
+    font-size: 1.15rem;
+    flex-shrink: 0;
+    width: 24px;
+    text-align: center;
+  }
+
+  .feature-card strong {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-active);
+  }
+
+  .ai-disclaimer {
+    margin-top: 2.5rem;
+    padding: 1.25rem 1.5rem;
+    border-radius: 10px;
+    border: 1px solid var(--border-color);
+    background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-hover) 100%);
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .ai-disclaimer::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: var(--accent);
+    border-radius: 3px 0 0 3px;
+  }
+
+  .ai-disclaimer-icon {
+    font-size: 1.1rem;
+    color: var(--accent);
+    margin-bottom: 0.25rem;
+  }
+
+  .ai-disclaimer p {
+    font-family: var(--font-reading);
+    font-size: 0.975rem;
+    color: var(--text-muted);
+    line-height: 1.6;
+    margin: 0;
+    font-style: italic;
+  }
+
+  @media (max-width: 768px) {
+    .welcome-card h1 {
+      font-size: 2.2rem;
+    }
+    .features-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

@@ -1,0 +1,101 @@
+---
+import type { CollectionEntry } from 'astro:content';
+import FileTree from './FileTree.astro';
+import { buildNavTree } from '../utils/nav-tree';
+
+interface Props {
+  entries: CollectionEntry<'docs'>[];
+  currentSlug?: string;
+}
+
+const { entries, currentSlug } = Astro.props;
+const navTree = buildNavTree(entries);
+---
+
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <a href="/" class="logo" title="Go to Dashboard">
+      <i class="fa-solid fa-book-open"></i>
+      <span>docs</span>
+    </a>
+    <button id="sidebar-toggle" class="btn-icon" title="Toggle Sidebar">
+      <i class="fa-solid fa-angles-left"></i>
+    </button>
+  </div>
+
+  <!-- Search Box -->
+  <div class="search-container">
+    <i class="fa-solid fa-magnifying-glass search-icon"></i>
+    <input type="text" id="search-input" placeholder="Search files & topics...">
+    <button id="search-clear" class="btn-icon hidden" title="Clear Search">
+      <i class="fa-solid fa-xmark"></i>
+    </button>
+  </div>
+
+  <!-- File Tree Navigation -->
+  <nav class="file-tree" id="file-tree">
+    <FileTree tree={navTree} currentSlug={currentSlug} />
+  </nav>
+
+  <div class="sidebar-footer">
+    <span class="user-info">
+      <i class="fa-solid fa-user-gear"></i> Ahmad Nurhidayat
+    </span>
+  </div>
+</aside>
+
+<script>
+  // Client-side search filter
+  const searchInput = document.getElementById('search-input') as HTMLInputElement;
+  const searchClear = document.getElementById('search-clear') as HTMLButtonElement;
+  const fileTree = document.getElementById('file-tree');
+
+  searchInput?.addEventListener('input', (e) => {
+    const query = (e.target as HTMLInputElement).value.toLowerCase().trim();
+    if (query.length > 0) {
+      searchClear?.classList.remove('hidden');
+      filterTree(query);
+    } else {
+      searchClear?.classList.add('hidden');
+      showAllNodes();
+    }
+  });
+
+  searchClear?.addEventListener('click', () => {
+    searchInput.value = '';
+    searchClear.classList.add('hidden');
+    showAllNodes();
+  });
+
+  function filterTree(query: string) {
+    const labels = fileTree?.querySelectorAll('.tree-label');
+    labels?.forEach(label => {
+      const text = label.textContent?.toLowerCase() || '';
+      const parent = label.closest('.tree-node');
+      if (text.includes(query)) {
+        parent?.classList.remove('hidden');
+        // Expand parent folders
+        expandParents(label);
+      } else {
+        parent?.classList.add('hidden');
+      }
+    });
+  }
+
+  function showAllNodes() {
+    const nodes = fileTree?.querySelectorAll('.tree-node');
+    nodes?.forEach(node => node.classList.remove('hidden'));
+  }
+
+  function expandParents(element: Element) {
+    let parent = element.parentElement;
+    while (parent) {
+      if (parent.classList?.contains('tree-children')) {
+        parent.classList.remove('collapsed');
+        const caret = parent.previousElementSibling?.querySelector('.caret-icon');
+        caret?.classList.add('rotated');
+      }
+      parent = parent.parentElement;
+    }
+  }
+</script>

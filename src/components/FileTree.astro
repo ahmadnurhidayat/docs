@@ -1,0 +1,17 @@
+---
+import TreeNode from './TreeNode.astro';
+import type { NavNode } from '../utils/nav-tree';
+
+interface Props {
+  tree: NavNode[];
+  currentSlug?: string;
+}
+
+const { tree, currentSlug } = Astro.props;
+---
+
+<ul style="list-style: none;">
+  {tree.map(node => (
+    <TreeNode node={node} depth={0} currentSlug={currentSlug} />
+  ))}
+</ul>

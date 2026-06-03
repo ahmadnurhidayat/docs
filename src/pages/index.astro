@@ -1,0 +1,352 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const title = 'docs';
+const description = 'Cloud DevOps Engineering Documentation - Runbooks, cheat sheets, and technical guides.';
+
+// Get all entries to count documents in each section
+const allEntries = await getCollection('docs');
+
+// Count documents by category
+const categories = [
+  {
+    id: '01-knowledge-base',
+    title: 'Knowledge Base',
+    description: 'In-depth technical guides covering AWS, Kubernetes, SRE, CI/CD, and Infrastructure as Code.',
+    icon: 'fa-solid fa-book',
+    color: 'purple',
+    link: '/docs/01-knowledge-base/aws/00-index'
+  },
+  {
+    id: '02-interview-prep',
+    title: 'Interview Preparation',
+    description: 'Curated Q&A and cheat sheets for cloud platform engineering interviews.',
+    icon: 'fa-solid fa-clipboard-question',
+    color: 'blue',
+    link: '/docs/02-interview-prep/00-index'
+  },
+  {
+    id: '03-labs',
+    title: 'Hands-On Labs',
+    description: 'Step-by-step platform engineering lab tutorials and practical exercises.',
+    icon: 'fa-solid fa-flask',
+    color: 'orange',
+    link: '/docs/03-labs/00-index'
+  },
+  {
+    id: '99-cv',
+    title: 'Professional Profile',
+    description: 'Career experience, certifications, and technical achievements.',
+    icon: 'fa-solid fa-user-tie',
+    color: 'teal',
+    link: '/docs/99-cv/ahmad-nurhidayat'
+  }
+];
+
+// Count docs per category
+categories.forEach(cat => {
+  const count = allEntries.filter(entry => entry.slug.startsWith(cat.id)).length;
+  (cat as any).count = count;
+});
+---
+
+<BaseLayout title={title} description={description} isWelcome={true}>
+  <div class="homepage-container">
+    
+    <!-- Hero Section -->
+    <div class="hero-section">
+      <h1 class="hero-title">Cloud DevOps Documentation</h1>
+      <p class="hero-subtitle">
+        Engineering runbooks, technical guides, and hands-on labs for production-grade cloud infrastructure and DevOps practices.
+      </p>
+    </div>
+
+    <!-- Category Grid -->
+    <div class="categories-grid">
+      {categories.map(category => (
+        <a href={category.link} class={`category-card category-${category.color}`}>
+          <div class="category-icon-wrapper">
+            <i class={category.icon}></i>
+          </div>
+          <div class="category-content">
+            <h3 class="category-title">{category.title}</h3>
+            <p class="category-description">{category.description}</p>
+            <div class="category-meta">
+              <span class="doc-count">{(category as any).count} documents</span>
+              <span class="arrow-icon">→</span>
+            </div>
+          </div>
+        </a>
+      ))}
+    </div>
+
+    <!-- Features Section -->
+    <div class="features-section">
+      <h2 class="section-title">Platform Features</h2>
+      <div class="features-grid">
+        <div class="feature-item">
+          <i class="fa-solid fa-magnifying-glass feature-icon"></i>
+          <span class="feature-label">Full-Text Search</span>
+        </div>
+        <div class="feature-item">
+          <i class="fa-solid fa-code feature-icon"></i>
+          <span class="feature-label">Syntax Highlighting</span>
+        </div>
+        <div class="feature-item">
+          <i class="fa-solid fa-moon feature-icon"></i>
+          <span class="feature-label">Dark Mode</span>
+        </div>
+        <div class="feature-item">
+          <i class="fa-solid fa-copy feature-icon"></i>
+          <span class="feature-label">One-Click Copy</span>
+        </div>
+        <div class="feature-item">
+          <i class="fa-solid fa-mobile-screen-button feature-icon"></i>
+          <span class="feature-label">Mobile Responsive</span>
+        </div>
+        <div class="feature-item">
+          <i class="fa-solid fa-bolt feature-icon"></i>
+          <span class="feature-label">Lightning Fast</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</BaseLayout>
+
+<style>
+  .homepage-container {
+    max-width: 1100px;
+    width: 100%;
+    padding: var(--spacing-section) 0;
+  }
+
+  /* Hero Section */
+  .hero-section {
+    text-align: center;
+    margin-bottom: var(--spacing-section);
+    padding: 0 var(--spacing-lg);
+  }
+
+  .hero-title {
+    font-size: 56px;
+    font-weight: 500;
+    line-height: 1.15;
+    letter-spacing: -1px;
+    color: var(--ink);
+    margin-bottom: var(--spacing-lg);
+  }
+
+  .hero-subtitle {
+    font-size: 18px;
+    line-height: 1.50;
+    color: var(--slate);
+    max-width: 700px;
+    margin: 0 auto;
+  }
+
+  /* Categories Grid */
+  .categories-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: var(--spacing-lg);
+    margin-bottom: var(--spacing-section-lg);
+  }
+
+  .category-card {
+    display: flex;
+    flex-direction: column;
+    background: var(--canvas);
+    border: 1px solid var(--hairline);
+    border-radius: var(--rounded-lg);
+    padding: var(--spacing-xl);
+    text-decoration: none;
+    transition: all 0.2s ease;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .category-card:hover {
+    border-color: var(--brand-green);
+    transform: translateY(-4px);
+    box-shadow: rgba(0, 30, 43, 0.08) 0px 12px 24px 0px;
+  }
+
+  .category-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--brand-green);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+
+  .category-card:hover::before {
+    opacity: 1;
+  }
+
+  /* Category Colors */
+  .category-purple .category-icon-wrapper {
+    background: rgba(137, 87, 229, 0.10);
+    color: var(--accent-purple);
+  }
+
+  .category-blue .category-icon-wrapper {
+    background: rgba(77, 163, 255, 0.10);
+    color: var(--accent-blue);
+  }
+
+  .category-orange .category-icon-wrapper {
+    background: rgba(255, 156, 65, 0.10);
+    color: var(--accent-orange);
+  }
+
+  .category-teal .category-icon-wrapper {
+    background: rgba(0, 104, 74, 0.10);
+    color: var(--brand-teal);
+  }
+
+  .category-icon-wrapper {
+    width: 56px;
+    height: 56px;
+    border-radius: var(--rounded-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    margin-bottom: var(--spacing-lg);
+    transition: transform 0.2s ease;
+  }
+
+  .category-card:hover .category-icon-wrapper {
+    transform: scale(1.1);
+  }
+
+  .category-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .category-title {
+    font-size: 22px;
+    font-weight: 500;
+    line-height: 1.35;
+    color: var(--ink);
+    margin-bottom: var(--spacing-sm);
+  }
+
+  .category-description {
+    font-size: 14px;
+    line-height: 1.50;
+    color: var(--slate);
+    margin-bottom: var(--spacing-lg);
+    flex: 1;
+  }
+
+  .category-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: var(--spacing-sm);
+    border-top: 1px solid var(--hairline-soft);
+  }
+
+  .doc-count {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--steel);
+  }
+
+  .arrow-icon {
+    font-size: 18px;
+    color: var(--brand-green);
+    transition: transform 0.2s ease;
+  }
+
+  .category-card:hover .arrow-icon {
+    transform: translateX(4px);
+  }
+
+  /* Features Section */
+  .features-section {
+    border-top: 1px solid var(--hairline);
+    padding-top: var(--spacing-section);
+    text-align: center;
+  }
+
+  .section-title {
+    font-size: 28px;
+    font-weight: 500;
+    line-height: 1.30;
+    color: var(--ink);
+    margin-bottom: var(--spacing-xl);
+  }
+
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: var(--spacing-lg);
+    max-width: 800px;
+    margin: 0 auto;
+  }
+
+  .feature-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-lg);
+    border-radius: var(--rounded-md);
+    transition: all 0.15s ease;
+  }
+
+  .feature-item:hover {
+    background: var(--surface-soft);
+  }
+
+  .feature-icon {
+    font-size: 24px;
+    color: var(--brand-green);
+  }
+
+  .feature-label {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--slate);
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .hero-title {
+      font-size: 36px;
+    }
+
+    .hero-subtitle {
+      font-size: 16px;
+    }
+
+    .categories-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .features-grid {
+      grid-template-columns: repeat(2, 1fr);
+      gap: var(--spacing-md);
+    }
+  }
+
+  @media (max-width: 480px) {
+    .hero-title {
+      font-size: 32px;
+    }
+
+    .features-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

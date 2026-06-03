@@ -1,0 +1,157 @@
+---
+import { getCollection } from 'astro:content';
+import Header from '../components/Header.astro';
+import Sidebar from '../components/Sidebar.astro';
+import FloatingToolbar from '../components/FloatingToolbar.astro';
+import ReadingProgressBar from '../components/ReadingProgressBar.astro';
+import '../styles/global.css';
+import '../styles/sidebar.css';
+import '../styles/markdown.css';
+
+interface Props {
+  title: string;
+  description?: string;
+  slug?: string;
+  isCV?: boolean;
+  isWelcome?: boolean;
+}
+
+const { title, description, slug, isCV = false, isWelcome = false } = Astro.props;
+const pageTitle = title ? `${title} — docs` : 'docs';
+const pageDesc = description ?? 'Engineering runbooks, cheat sheets, and lab notes.';
+const canonicalURL = new URL(Astro.url.pathname, Astro.site);
+
+// Build nav tree for sidebar
+const allEntries = await getCollection('docs');
+---
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{pageTitle}</title>
+  <meta name="description" content={pageDesc} />
+  <link rel="canonical" href={canonicalURL} />
+
+  <!-- OpenGraph -->
+  <meta property="og:title" content={pageTitle} />
+  <meta property="og:description" content={pageDesc} />
+  <meta property="og:url" content={canonicalURL} />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="docs" />
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content={pageTitle} />
+  <meta name="twitter:description" content={pageDesc} />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- Theme script (inline to prevent flash) -->
+  <script is:inline>
+    const theme = localStorage.getItem('theme');
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark-mode');
+    }
+  </script>
+</head>
+
+<body>
+  <ReadingProgressBar />
+
+  <div class="app-container">
+    <Sidebar entries={allEntries} currentSlug={slug} />
+    
+    <div class="sidebar-resizer" id="sidebar-resizer"></div>
+
+    <main class="main-content">
+      <Header isWelcome={isWelcome} slug={slug} />
+      
+      <article class="content-body">
+        <slot />
+      </article>
+    </main>
+  </div>
+
+  <FloatingToolbar />
+  
+  <button id="back-to-top" title="Back to top" aria-label="Scroll back to top">
+    <i class="fa-solid fa-arrow-up"></i>
+  </button>
+
+  <script src="../scripts/theme.ts"></script>
+  <script src="../scripts/toolbar.ts"></script>
+  <script src="../scripts/sidebar-resize.ts"></script>
+  <script src="../scripts/reading-progress.ts"></script>
+</body>
+</html>
+
+<style is:global>
+  .app-container {
+    display: flex;
+    flex: 1;
+    height: 100%;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+    background-color: var(--canvas);
+    min-width: 0;
+    transition: background-color var(--transition-speed);
+  }
+
+  .content-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--spacing-section) var(--spacing-xl);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  /* Content body scrollbar (MongoDB style) */
+  .content-body::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .content-body::-webkit-scrollbar-track {
+    background: var(--surface);
+    border-radius: 0;
+  }
+
+  .content-body::-webkit-scrollbar-thumb {
+    background: var(--hairline-strong);
+    border-radius: var(--rounded-full);
+    border: 2px solid var(--surface);
+    min-height: 40px;
+  }
+
+  .content-body::-webkit-scrollbar-thumb:hover {
+    background: var(--brand-green);
+  }
+
+  @media (max-width: 992px) {
+    .content-body {
+      padding: var(--spacing-section) var(--spacing-lg);
+    }
+  }
+
+  @media (max-width: 768px) {
+    .content-body {
+      padding: var(--spacing-xl) var(--spacing-lg);
+    }
+  }
+</style>

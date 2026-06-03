@@ -1,0 +1,101 @@
+---
+import { getCollection } from 'astro:content';
+import type { CollectionEntry } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import CVLayout from '../../layouts/CVLayout.astro';
+import Breadcrumbs from '../../components/Breadcrumbs.astro';
+import TableOfContents from '../../components/TableOfContents.astro';
+import DocNav from '../../components/DocNav.astro';
+import { buildNavTree, flattenTree, findPrevNext } from '../../utils/nav-tree';
+
+export async function getStaticPaths() {
+  const entries = await getCollection('docs');
+  return entries.map(entry => ({
+    params: { slug: entry.slug },
+    props: { entry },
+  }));
+}
+
+interface Props {
+  entry: CollectionEntry<'docs'>;
+}
+
+const { entry } = Astro.props;
+const { Content, headings } = await entry.render();
+
+// Determine if this is a CV page
+const isCV = entry.slug.startsWith('99-cv');
+const Layout = isCV ? CVLayout : BaseLayout;
+
+// Build navigation tree for prev/next
+const allEntries = await getCollection('docs');
+const navTree = buildNavTree(allEntries);
+const flatList = flattenTree(navTree);
+const { prev, next } = findPrevNext(flatList, entry.slug);
+
+// Extract title
+const title = entry.data.title ?? headings.find(h => h.depth === 1)?.text ?? 'Document';
+const description = entry.data.description ?? `${title} — docs`;
+
+// TOC headings (only depth 2 and 3)
+const tocHeadings = headings.filter(h => h.depth >= 2 && h.depth <= 3);
+---
+
+<Layout title={title} description={description} slug={entry.slug} isCV={isCV}>
+  <div class="doc-header">
+    <Breadcrumbs slug={entry.slug} />
+  </div>
+  
+  <div class="doc-layout">
+    {tocHeadings.length > 3 && (
+      <aside class="toc-sidebar">
+        <TableOfContents headings={tocHeadings} />
+      </aside>
+    )}
+    
+    <article class="markdown-body" class:list={[isCV && 'cv']} data-pagefind-body data-pagefind-meta={`title:${title}`}>
+      <Content />
+    </article>
+  </div>
+
+  <DocNav prev={prev} next={next} />
+</Layout>
+
+<style>
+  .doc-header {
+    width: 100%;
+    max-width: var(--reading-max-width);
+    margin-bottom: 1.5rem;
+  }
+
+  .doc-layout {
+    display: flex;
+    gap: 3rem;
+    width: 100%;
+    max-width: var(--reading-max-width);
+    position: relative;
+  }
+
+  .toc-sidebar {
+    display: none;
+    position: sticky;
+    top: 2rem;
+    align-self: flex-start;
+    width: 220px;
+    flex-shrink: 0;
+  }
+
+  @media (min-width: 1200px) {
+    .doc-layout {
+      max-width: 1100px;
+    }
+    .toc-sidebar {
+      display: block;
+    }
+  }
+
+  .markdown-body {
+    flex: 1;
+    min-width: 0;
+  }
+</style>

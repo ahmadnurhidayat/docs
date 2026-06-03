@@ -1,0 +1,60 @@
+---
+---
+
+<div id="floating-toolbar" class="floating-toolbar">
+  <button id="width-toggle" class="btn-float" title="Toggle Content Width">
+    <i class="fa-solid fa-left-right"></i>
+  </button>
+  <button id="font-increase" class="btn-float" title="Increase Font Size">
+    <i class="fa-solid fa-plus"></i>
+  </button>
+  <button id="font-decrease" class="btn-float" title="Decrease Font Size">
+    <i class="fa-solid fa-minus"></i>
+  </button>
+</div>
+
+<style>
+  .floating-toolbar {
+    position: fixed;
+    bottom: 5.5rem;
+    right: 2rem;
+    z-index: 200;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+  }
+
+  .btn-float {
+    width: 44px;
+    height: 44px;
+    border-radius: var(--rounded-full);
+    background: var(--canvas);
+    color: var(--ink);
+    border: 1px solid var(--hairline-strong);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    box-shadow: rgba(0, 30, 43, 0.08) 0px 4px 12px 0px;
+    transition: all 0.15s ease;
+  }
+
+  .btn-float:hover {
+    background: var(--brand-green);
+    color: var(--on-primary);
+    border-color: var(--brand-green);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 237, 100, 0.25), 0 2px 6px rgba(0, 0, 0, 0.12);
+  }
+
+  .btn-float:active {
+    transform: scale(0.95);
+  }
+
+  @media (max-width: 768px) {
+    .floating-toolbar {
+      display: none !important;
+    }
+  }
+</style>

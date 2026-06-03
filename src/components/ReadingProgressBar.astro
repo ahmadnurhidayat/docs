@@ -1,0 +1,24 @@
+---
+---
+
+<div id="progress-bar-container">
+  <div id="progress-bar"></div>
+</div>
+
+<style>
+  #progress-bar-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    z-index: 100;
+  }
+
+  #progress-bar {
+    height: 100%;
+    width: 0%;
+    background: var(--accent);
+    transition: width 0.1s linear;
+  }
+</style>

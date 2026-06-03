@@ -1,0 +1,17 @@
+---
+import BaseLayout from './BaseLayout.astro';
+import '../styles/cv.css';
+
+interface Props {
+  title: string;
+  description?: string;
+  slug?: string;
+  isCV: boolean;
+}
+
+const { title, description, slug, isCV } = Astro.props;
+---
+
+<BaseLayout title={title} description={description} slug={slug} isCV={isCV}>
+  <slot />
+</BaseLayout>

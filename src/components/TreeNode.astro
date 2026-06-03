@@ -1,0 +1,84 @@
+---
+import type { NavNode } from '../utils/nav-tree';
+
+interface Props {
+  node: NavNode;
+  depth: number;
+  currentSlug?: string;
+}
+
+const { node, depth, currentSlug } = Astro.props;
+const isActive = node.slug === currentSlug;
+const BASE_PAD = 14;
+const STEP_PAD = 26;
+const paddingLeft = BASE_PAD + depth * STEP_PAD;
+
+// Check if this folder should be expanded by default
+// Only expand top-level folders: 01-knowledge-base and 03-labs
+const shouldExpand = depth === 0 && (
+  node.name.startsWith('01-knowledge-base') || 
+  node.name.startsWith('03-labs')
+);
+
+// Check if any child is active (to keep parent expanded)
+function hasActiveChild(n: NavNode, slug?: string): boolean {
+  if (n.slug === slug) return true;
+  if (n.children) {
+    return n.children.some(child => hasActiveChild(child, slug));
+  }
+  return false;
+}
+
+const hasActive = currentSlug ? hasActiveChild(node, currentSlug) : false;
+const isExpanded = shouldExpand || hasActive;
+---
+
+<li class="tree-node">
+  {node.type === 'directory' ? (
+    <>
+      <div 
+        class:list={['tree-label', depth === 0 && 'tree-category']}
+        style={`padding-left: ${paddingLeft}px`}
+        data-folder={node.name}
+      >
+        <i class:list={['fa-solid fa-caret-right caret-icon', isExpanded && 'rotated']}></i>
+        <i class:list={['folder-icon', depth === 0 ? 'fa-solid fa-layer-group' : 'fa-solid fa-folder']}></i>
+        <span>{node.name}</span>
+      </div>
+      {node.children && (
+        <ul class:list={['tree-children', !isExpanded && 'collapsed']} style="list-style: none;">
+          {node.children.map(child => (
+            <Astro.self node={child} depth={depth + 1} currentSlug={currentSlug} />
+          ))}
+        </ul>
+      )}
+    </>
+  ) : (
+    <a href={`/docs/${node.slug}`} class:list={['tree-label', isActive && 'active']} style={`padding-left: ${paddingLeft}px`}>
+      <i class="fa-regular fa-file-lines file-icon"></i>
+      <span>{node.name}</span>
+    </a>
+  )}
+</li>
+
+<script>
+  // Toggle folder collapse on click
+  document.querySelectorAll('[data-folder]').forEach(folder => {
+    folder.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const parent = folder.parentElement;
+      const children = parent?.querySelector('.tree-children');
+      const caret = folder.querySelector('.caret-icon');
+      
+      children?.classList.toggle('collapsed');
+      caret?.classList.toggle('rotated');
+    });
+  });
+</script>
+
+<style>
+  a.tree-label {
+    text-decoration: none;
+    color: inherit;
+  }
+</style>

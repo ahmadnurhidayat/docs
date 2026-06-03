@@ -1,0 +1,45 @@
+---
+interface Props {
+  slug: string;
+}
+
+const { slug } = Astro.props;
+const parts = slug.split('/');
+---
+
+<div class="breadcrumbs">
+  {parts.map((part, index) => (
+    <>
+      <span>{part}</span>
+      {index < parts.length - 1 && (
+        <span class="separator">
+          <i class="fa-solid fa-chevron-right"></i>
+        </span>
+      )}
+    </>
+  ))}
+</div>
+
+<style>
+  .breadcrumbs {
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--steel);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    overflow: hidden;
+    white-space: nowrap;
+  }
+
+  .breadcrumbs span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .breadcrumbs .separator {
+    font-size: 0.65rem;
+    color: var(--hairline-strong);
+    flex-shrink: 0;
+  }
+</style>

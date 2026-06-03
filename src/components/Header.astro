@@ -1,0 +1,106 @@
+---
+import Breadcrumbs from './Breadcrumbs.astro';
+
+interface Props {
+  isWelcome?: boolean;
+  slug?: string;
+}
+
+const { isWelcome = false, slug } = Astro.props;
+---
+
+<header class="content-header">
+  <button id="menu-toggle" class="btn-icon" title="Open Navigation">
+    <i class="fa-solid fa-bars"></i>
+  </button>
+
+  {isWelcome ? (
+    <div class="breadcrumbs">
+      <span>Dashboard</span>
+    </div>
+  ) : slug ? (
+    <Breadcrumbs slug={slug} />
+  ) : (
+    <div class="breadcrumbs">
+      <span>Documentation</span>
+    </div>
+  )}
+
+  <div class="header-actions">
+    <button id="theme-toggle" class="btn-icon" title="Toggle Dark/Light Mode">
+      <i class="fa-solid fa-moon"></i>
+    </button>
+  </div>
+</header>
+
+<script>
+  // Menu toggle for mobile
+  const menuToggle = document.getElementById('menu-toggle');
+  const sidebar = document.getElementById('sidebar');
+
+  menuToggle?.addEventListener('click', () => {
+    sidebar?.classList.toggle('open');
+  });
+
+  // Close sidebar on click outside (mobile)
+  document.addEventListener('click', (e) => {
+    if (window.innerWidth <= 768) {
+      const target = e.target as HTMLElement;
+      if (!sidebar?.contains(target) && !menuToggle?.contains(target)) {
+        sidebar?.classList.remove('open');
+      }
+    }
+  });
+
+  // Sidebar toggle (desktop collapse/expand)
+  const sidebarToggle = document.getElementById('sidebar-toggle');
+  sidebarToggle?.addEventListener('click', () => {
+    const isMobile = window.innerWidth <= 768;
+    if (isMobile) {
+      sidebar?.classList.toggle('open');
+    } else {
+      sidebar?.classList.toggle('collapsed');
+      const icon = sidebarToggle.querySelector('i');
+      if (icon) {
+        icon.className = sidebar?.classList.contains('collapsed')
+          ? 'fa-solid fa-angles-right'
+          : 'fa-solid fa-angles-left';
+      }
+    }
+  });
+</script>
+
+<style>
+  .content-header {
+    height: 64px;
+    padding: 0 var(--spacing-xl);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--hairline);
+    flex-shrink: 0;
+    background-color: var(--canvas);
+    transition: background-color var(--transition-speed), border-color var(--transition-speed);
+  }
+
+  #menu-toggle {
+    display: none;
+  }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    flex-shrink: 0;
+  }
+
+  @media (max-width: 768px) {
+    #menu-toggle {
+      display: flex;
+      font-size: 1.1rem;
+    }
+    .content-header {
+      padding: 0 var(--spacing-lg);
+    }
+  }
+</style>

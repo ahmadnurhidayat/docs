@@ -1,0 +1,323 @@
+/* ─── Sidebar (MongoDB-inspired) ────────────────────────────────────── */
+.sidebar {
+    width: var(--sidebar-width);
+    min-width: var(--sidebar-width);
+    background-color: var(--surface);
+    border-right: 1px solid var(--hairline);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    z-index: 10;
+    transition: width var(--transition-speed), min-width var(--transition-speed), transform var(--transition-speed), background-color var(--transition-speed);
+}
+
+.sidebar.collapsed {
+    width: 0 !important;
+    min-width: 0 !important;
+    border-right: none;
+    overflow: hidden;
+}
+
+/* ─── Sidebar Resizer ─────────────────────────────────────────────── */
+.sidebar-resizer {
+    width: 4px;
+    background-color: transparent;
+    cursor: col-resize;
+    position: relative;
+    z-index: 15;
+    transition: background-color 0.15s, width 0.15s;
+    flex-shrink: 0;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.sidebar-resizer:hover,
+.sidebar-resizer.active {
+    width: 6px;
+    background-color: var(--brand-green);
+}
+
+.sidebar.collapsed+.sidebar-resizer {
+    display: none !important;
+}
+
+body.is-resizing,
+body.is-resizing * {
+    cursor: col-resize !important;
+    user-select: none !important;
+    -webkit-user-select: none !important;
+}
+
+/* ─── Sidebar Header ──────────────────────────────────────────────── */
+.sidebar-header {
+    padding: var(--spacing-lg) var(--spacing-lg);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--hairline);
+    flex-shrink: 0;
+    background-color: var(--canvas);
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    font-weight: 600;
+    font-size: 18px;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+    transition: color var(--transition-speed);
+}
+
+.logo i {
+    color: var(--brand-green);
+    font-size: 1.25rem;
+}
+
+.btn-icon {
+    background: transparent;
+    border: none;
+    color: var(--steel);
+    font-size: 1rem;
+    cursor: pointer;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--rounded-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+    flex-shrink: 0;
+}
+
+.btn-icon:hover {
+    background-color: var(--surface-soft);
+    color: var(--ink);
+}
+
+.btn-icon:active {
+    transform: scale(0.95);
+}
+
+/* ─── Sidebar Search ───────────────────────────────────────────────── */
+.search-container {
+    padding: var(--spacing-md);
+    position: relative;
+    border-bottom: 1px solid var(--hairline);
+    flex-shrink: 0;
+    background-color: var(--canvas);
+}
+
+.search-icon {
+    position: absolute;
+    left: calc(var(--spacing-md) + 12px);
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--steel);
+    font-size: 0.875rem;
+    pointer-events: none;
+}
+
+#search-input {
+    width: 100%;
+    background-color: var(--surface);
+    border: 1px solid var(--hairline-strong);
+    color: var(--ink);
+    padding: var(--spacing-sm) var(--spacing-md) var(--spacing-sm) 2.5rem;
+    border-radius: var(--rounded-md);
+    font-size: 14px;
+    font-family: var(--font-display);
+    outline: none;
+    transition: all 0.15s;
+    height: 44px;
+}
+
+#search-input::placeholder {
+    color: var(--steel);
+}
+
+#search-input:focus {
+    border-color: var(--brand-green-dark);
+    border-width: 2px;
+    padding: calc(var(--spacing-sm) - 1px) calc(var(--spacing-md) - 1px) calc(var(--spacing-sm) - 1px) calc(2.5rem - 1px);
+    background-color: var(--canvas);
+}
+
+#search-clear {
+    position: absolute;
+    right: calc(var(--spacing-md) + 12px);
+    top: 50%;
+    transform: translateY(-50%);
+    width: 20px;
+    height: 20px;
+    font-size: 0.75rem;
+    color: var(--steel);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: color 0.15s;
+}
+
+#search-clear:hover {
+    color: var(--ink);
+}
+
+/* ─── File Tree ─────────────────────────────────────────────────────── */
+.file-tree {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--spacing-sm) 0;
+    background-color: var(--surface);
+}
+
+.tree-node {
+    list-style: none;
+    padding-left: 0;
+}
+
+.tree-label {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-xs) var(--spacing-md) var(--spacing-xs) 0;
+    font-size: 14px;
+    font-weight: 400;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.15s;
+    color: var(--slate);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    border-left: 2px solid transparent;
+    margin: 1px 0;
+}
+
+.tree-label:hover {
+    background-color: var(--surface-soft);
+    color: var(--ink);
+}
+
+.tree-label.active {
+    color: var(--brand-green-dark);
+    font-weight: 500;
+    border-left-color: var(--brand-green);
+    background-color: var(--brand-green-soft);
+}
+
+html.dark-mode .tree-label.active {
+    color: var(--brand-green);
+}
+
+.tree-label.tree-category {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--steel);
+    margin-top: var(--spacing-md);
+    padding-top: var(--spacing-sm);
+    padding-bottom: var(--spacing-xs);
+    cursor: pointer;
+    border-top: 1px solid var(--hairline-soft);
+}
+
+.tree-label.tree-category:first-child {
+    margin-top: 0;
+    border-top: none;
+}
+
+.tree-children {
+    display: block;
+    animation: slideIn 0.2s ease;
+}
+
+.tree-children.collapsed {
+    display: none;
+}
+
+.caret-icon {
+    width: 12px;
+    font-size: 0.7rem;
+    color: var(--steel);
+    transition: transform 0.2s ease;
+    flex-shrink: 0;
+}
+
+.caret-icon.rotated {
+    transform: rotate(90deg);
+}
+
+.folder-icon {
+    color: var(--accent-orange);
+    font-size: 0.9rem;
+    flex-shrink: 0;
+}
+
+.file-icon {
+    color: var(--brand-green);
+    font-size: 0.85rem;
+    flex-shrink: 0;
+}
+
+.loading-spinner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    color: var(--steel);
+    height: 80px;
+    font-size: 14px;
+}
+
+/* ─── Sidebar Footer ───────────────────────────────────────────────── */
+.sidebar-footer {
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-top: 1px solid var(--hairline);
+    font-size: 13px;
+    color: var(--steel);
+    flex-shrink: 0;
+    background-color: var(--canvas);
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+}
+
+/* ─── Custom Scrollbar ────────────────────────────────────────────── */
+.file-tree::-webkit-scrollbar {
+    width: 6px;
+}
+
+.file-tree::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.file-tree::-webkit-scrollbar-thumb {
+    background: var(--hairline);
+    border-radius: var(--rounded-full);
+}
+
+.file-tree::-webkit-scrollbar-thumb:hover {
+    background: var(--hairline-strong);
+}
+
+/* ─── Category Color Indicators ───────────────────────────────────── */
+.tree-label[data-category="knowledge-base"] .folder-icon {
+    color: var(--accent-purple);
+}
+
+.tree-label[data-category="interview-prep"] .folder-icon {
+    color: var(--accent-blue);
+}
+
+.tree-label[data-category="labs"] .folder-icon {
+    color: var(--accent-orange);
+}
+
+.tree-label[data-category="cv"] .folder-icon {
+    color: var(--brand-teal);
+}
