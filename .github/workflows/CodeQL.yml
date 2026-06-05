@@ -7,9 +7,6 @@ on:
   pull_request:
     branches:
       - main
-  schedule:
-    # Full weekly scan every Monday at 08:00 UTC
-    - cron: '0 8 * * 1'
 
 permissions:
   contents: read
