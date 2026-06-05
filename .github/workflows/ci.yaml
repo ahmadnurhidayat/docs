@@ -1,0 +1,90 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  check:
+    name: Type Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+
+      - name: Astro type check
+        run: npx astro check
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: check
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+
+      - name: Cache Astro build cache
+        uses: actions/cache@v4
+        with:
+          path: .astro
+          key: astro-${{ hashFiles('src/**', 'content/**', 'astro.config.mjs', 'package-lock.json') }}
+          restore-keys: astro-
+
+      - name: Build
+        run: npm run build
+        env:
+          NODE_ENV: production
+
+      - name: Validate output
+        run: |
+          [ -f dist/index.html ] || { echo "Missing dist/index.html"; exit 1; }
+          echo "Pages built: $(find dist -name '*.html' | wc -l | tr -d ' ')"
+          echo "Total size:  $(du -sh dist/ | cut -f1)"
+          [ -d dist/pagefind ] && echo "Pagefind index: $(du -sh dist/pagefind/ | cut -f1)"
+          exit 0
+
+      - name: Upload PR preview artifact
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-pr-${{ github.event.pull_request.number }}
+          path: dist/
+          retention-days: 3
