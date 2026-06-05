@@ -5,7 +5,7 @@
 
 A static knowledge base and engineering notebook. **docs** is designed for engineers who want a lightning-fast, searchable, and distraction-free platform to organize runbooks, cheat sheets, lab notes, and portfolios using pure Markdown.
 
-🌐 **Live Demo**: [docs.ahmadnurhidayat.com](https://docs.ahmadnurhidayat.com/)
+🌐 **Live Demo**: [docs.beyondyou.my.id](https://docs.beyondyou.my.id/)
 
 ---
 

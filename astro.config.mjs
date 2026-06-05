@@ -2,7 +2,7 @@ import { defineConfig } from 'astro/config';
 import mdx from '@astrojs/mdx';
 
 export default defineConfig({
-  site: 'https://docs.ahmadnurhidayat.com',
+  site: 'https://docs.beyondyou.my.id',
   base: '/',
   integrations: [mdx()],
   markdown: {
