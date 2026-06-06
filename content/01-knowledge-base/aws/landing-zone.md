@@ -292,6 +292,40 @@ The recommended topology for most enterprises is a centralized Network account o
 
 All outbound internet traffic routes through the Network account, where you can inspect, log, and control egress centrally. Individual workload accounts have private subnets only.
 
+```mermaid
+flowchart TD
+    subgraph Org["AWS Organization"]
+        subgraph Network["Network Account"]
+            TGW["Transit Gateway\n(central hub)"]
+            EGRESS["Egress VPC\nNAT GW + IGW"]
+            DNS["Route 53 Resolver\nInbound + Outbound"]
+            TGW <--> EGRESS
+        end
+
+        subgraph Security["Security Account (Audit)"]
+            SECHUB["Security Hub\n(aggregator)"]
+            GD["GuardDuty\n(org admin)"]
+        end
+
+        subgraph LogArchive["Log Archive Account"]
+            S3LOGS["S3 Object Lock\nCloudTrail + VPC Flow Logs"]
+        end
+
+        subgraph Workloads["Workload Accounts"]
+            PROD["prod-teamA\nPrivate subnets only"]
+            DEV["dev-teamA\nPrivate subnets only"]
+        end
+    end
+
+    ONPREM["On-Premises\n(via DX / VPN)"]
+
+    PROD & DEV -->|"TGW attachment"| TGW
+    ONPREM -->|"Direct Connect"| TGW
+    TGW --> EGRESS -->|"internet egress"| INTERNET["Internet"]
+    PROD & DEV -->|"logs"| S3LOGS
+    PROD & DEV -->|"findings"| SECHUB
+```
+
 ### Centralized vs Distributed Egress
 
 | | Centralized Egress | Distributed (per-account NAT) |

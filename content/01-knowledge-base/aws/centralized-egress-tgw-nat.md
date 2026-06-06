@@ -38,6 +38,34 @@ At 20 accounts × 2 AZs × $0.045/hr NAT GW = ~$630/month in NAT Gateway costs a
 4.  **NAT Gateway:** Performs Source NAT, replaces the private IP with a static Elastic IP, and pushes the packets through the Internet Gateway to the public Internet.
 5.  **Return Path:** The Internet routes return traffic back to the NAT Gateway Elastic IP. The Egress VPC route table maps return packets back through the TGW, which evaluates and forwards the packets back to the source Spoke VPC attachment and final destination.
 
+```mermaid
+flowchart LR
+    subgraph Spoke["Spoke VPC\n(App Account)"]
+        APP["EC2 / Pod\n10.x.x.x"]
+    end
+
+    subgraph TGW["Transit Gateway"]
+        RT_SPOKE["Spoke Route Table\n0.0.0.0/0 → Egress attachment"]
+        RT_EGRESS["Egress Route Table\nSpoke CIDRs propagated"]
+    end
+
+    subgraph Egress["Egress VPC\n(Network Account)"]
+        TGW_SUBNET["TGW Subnet\n(AZ-local)"]
+        NAT["NAT Gateway\nElastic IP: 1.2.3.4"]
+        IGW["Internet Gateway"]
+    end
+
+    INTERNET["Internet"]
+
+    APP -->|"0.0.0.0/0 → TGW"| RT_SPOKE
+    RT_SPOKE --> TGW_SUBNET
+    TGW_SUBNET --> NAT
+    NAT --> IGW --> INTERNET
+    INTERNET -->|"return traffic"| IGW
+    IGW --> NAT --> TGW_SUBNET
+    RT_EGRESS --> APP
+```
+
 ### Centralized vs Distributed — The Trade-off in Full
 
 | Dimension | Centralized Egress | Distributed (per-account NAT) |

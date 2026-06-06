@@ -38,6 +38,16 @@ The FinOps Foundation's maturity model is a useful honest assessment tool. Most 
 | **Walk** | Allocation: costs attributed to teams or products with >80% coverage; anomaly alerting in place; first commitment purchases (Savings Plans) | Engineering leads see their team's spend in weekly reviews; FinOps function exists (even if one person) |
 | **Run** | Optimization: unit economics tracked; commitment coverage >80%; rightsizing automated or on a regular cadence; chargeback or showback integrated with P&L | Product teams own their unit cost targets; cost efficiency is in sprint planning; FinOps is embedded in architecture reviews |
 
+```mermaid
+flowchart LR
+    CRAWL["Crawl\n• Total bill visible\n• Account-level breakdown\n• Tagging policy on paper"]
+    WALK["Walk\n• Team-level cost allocation\n• Anomaly alerting\n• First Savings Plans"]
+    RUN["Run\n• Unit economics tracked\n• >80% SP coverage\n• Automated rightsizing\n• Chargeback / showback"]
+
+    CRAWL -->|"tagging enforced\n+ team visibility"| WALK
+    WALK -->|"unit economics\n+ automation"| RUN
+```
+
 **Common anti-pattern:** Organizations jump to "run" tooling (Kubecost, Apptio, full chargeback) before establishing "crawl" foundations (tagging coverage, account-level visibility). The tooling cannot allocate costs that are not tagged or structured for attribution.
 
 ### FinOps Is a Team Sport

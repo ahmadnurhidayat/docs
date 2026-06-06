@@ -407,3 +407,17 @@
         font-size: 24px;
     }
 }
+
+/* ─── Mermaid Diagrams ─────────────────────────────────────────────── */
+.mermaid-diagram {
+    margin: var(--spacing-xl) 0;
+    display: flex;
+    justify-content: center;
+    overflow-x: auto;
+}
+
+.mermaid-diagram svg {
+    max-width: 100%;
+    height: auto;
+    border-radius: var(--rounded-md);
+}

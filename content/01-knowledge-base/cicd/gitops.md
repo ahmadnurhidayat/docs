@@ -53,6 +53,29 @@ In a pull-based GitOps model, an agent inside the cluster — Argo CD or Flux �
 | Rollback mechanism | Re-run pipeline with old ref | Revert Git commit |
 | Works without network egress from CI | No | Yes |
 
+```mermaid
+flowchart TD
+    GIT["Git Repository\n(desired state)"]
+
+    subgraph Push["Push-Based (Traditional CI/CD)"]
+        CI["CI Runner\n(holds cluster credentials)"]
+        CLUSTER_P["Cluster"]
+        CI -->|"kubectl apply / helm upgrade\nCI reaches INTO cluster"| CLUSTER_P
+    end
+
+    subgraph Pull["Pull-Based (GitOps)"]
+        subgraph CLUSTER_L["Cluster"]
+            AGENT["GitOps Agent\n(ArgoCD / Flux)\nruns with in-cluster RBAC"]
+            RECONCILE["Reconcile Loop\nfetch → diff → apply\nevery 30s–5m"]
+            AGENT --> RECONCILE
+        end
+    end
+
+    GIT -->|"webhook"| CI
+    AGENT -->|"polls for new commits\n(outbound only)"| GIT
+    RECONCILE -->|"self-heals drift"| CLUSTER_L
+```
+
 ### The Reconciliation Loop
 
 The reconciliation loop is the core operational mechanism of any GitOps agent. It runs continuously on a configurable interval (typically 30 seconds to 5 minutes) and executes three steps: fetch the desired state from Git, fetch the actual state from the cluster, compute the diff, and apply the diff. If Git and the cluster match, nothing happens. If they diverge, the agent drives the cluster back toward Git.
@@ -597,6 +620,25 @@ Many teams use both: Helm for third-party applications (ingress-nginx, cert-mana
 ### What Argo Rollouts Adds
 
 Kubernetes Deployments support rolling updates but provide no traffic control — all traffic shifts to new pods as they become ready. Argo Rollouts replaces the Deployment controller with a Rollout controller that integrates with ingress controllers and service meshes to split traffic by percentage, run automated metric analysis, and gate promotion on observable signals.
+
+```mermaid
+flowchart TD
+    DEPLOY["New image deployed\nto Rollout resource"]
+    W1["setWeight: 10%\ncanary gets 10% traffic"]
+    P1["pause 5 min\n(observe error rate)"]
+    ANALYSIS["AnalysisTemplate\nPrometheus: success_rate ≥ 95%"]
+    W2["setWeight: 50%"]
+    P2["pause 10 min"]
+    W3["setWeight: 100%\nfull cutover"]
+    STABLE["Stable — old pods scaled down"]
+    ABORT["Abort\ntraffic reverted to stable\nno manual rollback needed"]
+
+    DEPLOY --> W1 --> P1 --> ANALYSIS
+    ANALYSIS -->|"pass"| W2 --> P2 --> W3 --> STABLE
+    ANALYSIS -->|"fail"| ABORT
+    P1 -->|"manual abort"| ABORT
+    P2 -->|"manual abort"| ABORT
+```
 
 ### Canary Rollout
 

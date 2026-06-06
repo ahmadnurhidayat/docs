@@ -71,6 +71,27 @@ OpenID Connect (OIDC) eliminates long-lived keys entirely. The mechanism works a
 
 The temporary credentials expire automatically. There is no secret to rotate, no leaked key that remains valid after the job ends, and no static secret stored in GitHub at all.
 
+```mermaid
+sequenceDiagram
+    participant GHA as GitHub Actions Runner
+    participant GHOIDC as GitHub OIDC Provider
+    participant STS as AWS STS
+    participant IAM as IAM Role Trust Policy
+    participant ECR as AWS ECR / EKS
+
+    GHA->>GHOIDC: Request OIDC JWT (job start)
+    GHOIDC-->>GHA: Short-lived JWT\n(repo + branch + workflow claims)
+    GHA->>STS: AssumeRoleWithWebIdentity\n(JWT + role ARN)
+    STS->>IAM: Validate JWT claims\n(repo match, branch match)
+    alt Claims valid
+        IAM-->>STS: Trust granted
+        STS-->>GHA: Temporary credentials\n(15–60 min TTL)
+        GHA->>ECR: docker push / helm upgrade
+    else Claims rejected
+        STS-->>GHA: AccessDenied\n(no static secret exposed)
+    end
+```
+
 The IAM role trust policy controls which GitHub repositories and branches can assume which roles. A correctly scoped trust policy looks like this:
 
 ```json
@@ -133,12 +154,23 @@ GitHub Actions jobs run in parallel by default. The `needs` keyword creates expl
 
 ### The Job DAG
 
-```
-lint ──┐
-       ├──→ build ──→ deploy-staging ──→ deploy-prod
-test ──┤
-       │
-scan ──┘
+```mermaid
+flowchart TD
+    PUSH["Code Push / PR"]
+
+    subgraph Parallel["Parallel CI Phase"]
+        LINT["lint\n~1-2 min"]
+        TEST["test\n~2-5 min"]
+        SCAN["security-scan\n~1-3 min"]
+    end
+
+    BUILD["build\n(quality gate)\nwaits for all three"]
+    STG["deploy-staging\n(push to main only)"]
+    PROD["deploy-prod\n(manual approval gate)"]
+
+    PUSH --> LINT & TEST & SCAN
+    LINT & TEST & SCAN -->|"all pass"| BUILD
+    BUILD --> STG --> PROD
 ```
 
 - `lint`, `test`, and `security-scan` run in parallel — they have no `needs` dependency on each other

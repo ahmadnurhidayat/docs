@@ -94,6 +94,33 @@ Once DNS resolution is working correctly (covered in the next section), the actu
 
 No traffic ever leaves the AWS network. No NAT gateway is involved. The flow is symmetric and deterministic.
 
+```mermaid
+flowchart LR
+    subgraph Spoke["Spoke VPC (App Account)"]
+        APP["Workload\nEC2 / Pod"]
+    end
+
+    subgraph TGW["Transit Gateway"]
+        RT["Route Tables\nHub CIDRs → Hub attachment\nSpoke CIDRs → Spoke attachments"]
+    end
+
+    subgraph Hub["Shared-Services VPC (Hub)"]
+        ENI["Interface Endpoint ENI\n10.1.2.45\n(SSM, ECR, Secrets Mgr…)"]
+        RESOLVER["Route 53 Resolver\nInbound Endpoint"]
+    end
+
+    AWS_FABRIC["AWS Internal Fabric\n(PrivateLink)"]
+    SERVICE["AWS Service\n(e.g. SSM backend)"]
+
+    APP -->|"dest: 10.1.2.45\nroute → TGW"| RT
+    RT -->|"hub subnet CIDR"| ENI
+    ENI --> AWS_FABRIC --> SERVICE
+    SERVICE --> AWS_FABRIC --> ENI --> RT --> APP
+
+    APP -->|"DNS query\nssm.*.amazonaws.com"| RESOLVER
+    RESOLVER -->|"returns 10.1.2.45"| APP
+```
+
 ---
 
 ## 4. Private DNS & PHZ Sharing

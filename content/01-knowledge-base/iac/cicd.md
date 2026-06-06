@@ -359,36 +359,50 @@ resource "aws_eks_cluster" "main" {
 
 ### Pipeline Architecture
 
-```
-Pull Request opened / updated
-        │
-        ├─── Static Checks (parallel, fast)
-        │       ├─ terraform fmt -check
-        │       ├─ terraform validate
-        │       ├─ tflint
-        │       ├─ tfsec / checkov
-        │       └─ terragrunt hcl-fmt --check
-        │
-        ├─── Plan Jobs (parallel per changed stack)
-        │       ├─ terragrunt plan → prod/networking
-        │       ├─ terragrunt plan → prod/eks
-        │       └─ terragrunt plan → staging/eks
-        │       (plan outputs posted as PR comments)
-        │
-        └─── [PR Review + Approval]
+```mermaid
+flowchart TD
+    PR["Pull Request opened / updated"]
 
-Merge to main
-        │
-        ├─── Apply Jobs (sequential by dependency order)
-        │       ├─ terragrunt apply → staging/networking
-        │       ├─ terragrunt apply → staging/eks
-        │       └─ [Manual approval gate]
-        │           ├─ terragrunt apply → prod/networking
-        │           └─ terragrunt apply → prod/eks
-        │
-        └─── Post-Apply Validation
-                ├─ smoke tests
-                └─ drift check (plan should be empty)
+    subgraph Static["Static Checks (parallel, fast)"]
+        FMT["terraform fmt -check"]
+        VAL["terraform validate"]
+        LINT["tflint"]
+        SEC["tfsec / checkov"]
+        HCL["terragrunt hcl-fmt --check"]
+    end
+
+    subgraph Plans["Plan Jobs (parallel per changed stack)"]
+        P1["terragrunt plan\nprod/networking"]
+        P2["terragrunt plan\nprod/eks"]
+        P3["terragrunt plan\nstaging/eks"]
+        COMMENT["Plans posted as PR comments"]
+    end
+
+    REVIEW["PR Review + Approval"]
+
+    subgraph Apply["Apply Jobs (sequential by dependency)"]
+        A1["terragrunt apply\nstaging/networking"]
+        A2["terragrunt apply\nstaging/eks"]
+        GATE["Manual approval gate\n(prod)"]
+        A3["terragrunt apply\nprod/networking"]
+        A4["terragrunt apply\nprod/eks"]
+    end
+
+    subgraph PostApply["Post-Apply Validation"]
+        SMOKE["smoke tests"]
+        DRIFT["drift check\n(plan should be empty)"]
+    end
+
+    PR --> Static
+    PR --> Plans
+    Plans --> COMMENT
+    COMMENT --> REVIEW
+    REVIEW -->|"merge to main"| A1
+    A1 --> A2
+    A2 --> GATE
+    GATE --> A3
+    A3 --> A4
+    A4 --> PostApply
 ```
 
 ### GitHub Actions: Plan Workflow
@@ -617,6 +631,27 @@ resource "aws_iam_role" "github_apply" {
 | **ApplyRole** | Merge-to-main pipeline jobs | Resource-specific write permissions scoped to the layer |
 | **StateRole** | Both | `s3:GetObject`, `s3:PutObject`, `dynamodb:PutItem`, `dynamodb:DeleteItem` on state resources only |
 | **BootstrapRole** | One-time manual run | Admin (used to create the state bucket and lock table) |
+
+```mermaid
+sequenceDiagram
+    participant GHA as GitHub Actions Runner
+    participant GH as GitHub OIDC Provider
+    participant STS as AWS STS
+    participant IAM as IAM Role
+    participant TF as Terraform / Terragrunt
+
+    GHA->>GH: Request OIDC JWT (short-lived token)
+    GH-->>GHA: JWT (contains repo, branch, workflow claims)
+    GHA->>STS: AssumeRoleWithWebIdentity (JWT + role ARN)
+    STS->>IAM: Verify JWT claims match trust policy conditions
+    alt Claims match (e.g. branch = main for ApplyRole)
+        IAM-->>STS: Trust granted
+        STS-->>GHA: Temporary credentials (15–60 min TTL)
+        GHA->>TF: Run plan / apply with temp credentials
+    else Claims rejected (e.g. PR branch → ApplyRole)
+        STS-->>GHA: AccessDenied — no static secret exposed
+    end
+```
 
 ### Secrets That Must Reach the Pipeline
 

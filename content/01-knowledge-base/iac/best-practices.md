@@ -73,6 +73,34 @@ Standardizing repository layouts ensures consistent engineering onboarding and p
 - **Reusable Modules:** The directories under `environments/` act as consumer root modules that ingest standard inputs to instantiate modules located under `modules/` or external registries.
 - **Zero Hardcoded Secrets:** Never put credentials, API keys, or database passwords in `.tf` files or `tfvars` committed to version control.
 
+```mermaid
+flowchart TD
+    subgraph Registry["Module Registry / Local modules/"]
+        M_VPC["vpc module"]
+        M_EKS["eks module"]
+        M_RDS["rds module"]
+    end
+
+    subgraph Envs["environments/"]
+        DEV["dev/\nmain.tf\nvariables.tf\nbackend.tf"]
+        STG["staging/\nmain.tf\nvariables.tf\nbackend.tf"]
+        PRD["prod/\nmain.tf\nvariables.tf\nbackend.tf"]
+    end
+
+    subgraph State["Remote State (S3 + DynamoDB)"]
+        S_DEV["dev/terraform.tfstate"]
+        S_STG["staging/terraform.tfstate"]
+        S_PRD["prod/terraform.tfstate"]
+    end
+
+    M_VPC & M_EKS & M_RDS --> DEV
+    M_VPC & M_EKS & M_RDS --> STG
+    M_VPC & M_EKS & M_RDS --> PRD
+    DEV <--> S_DEV
+    STG <--> S_STG
+    PRD <--> S_PRD
+```
+
 ---
 
 ## 3. Provider & Version Pinning
@@ -140,6 +168,26 @@ resource "aws_dynamodb_table" "tf_lock" {
 - **Concurrency Control:** Always configure state locking. An apply concurrent with another developer's plan can corrupt the resource state.
 - **Backend Durability:** Enable S3 bucket versioning on the state bucket to easily recover from manual corruptions or accidental removals.
 - **Never Modify State Directly:** Use the programmatic state manipulation commands to refactor resources safely.
+
+```mermaid
+sequenceDiagram
+    participant Dev as Developer / CI Runner
+    participant DDB as DynamoDB Lock Table
+    participant S3 as S3 State Bucket
+    participant AWS as AWS APIs
+
+    Dev->>DDB: Acquire lock (PutItem LockID)
+    alt Lock already held
+        DDB-->>Dev: ConditionalCheckFailedException → retry or fail
+    else Lock acquired
+        DDB-->>Dev: Lock granted
+        Dev->>S3: Read current terraform.tfstate
+        Dev->>AWS: terraform plan / apply
+        AWS-->>Dev: Resource changes
+        Dev->>S3: Write updated terraform.tfstate
+        Dev->>DDB: Release lock (DeleteItem LockID)
+    end
+```
 
 ### Safe State Refactoring Commands
 

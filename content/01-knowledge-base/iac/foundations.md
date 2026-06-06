@@ -171,6 +171,20 @@ Infrastructure is a product with a published API (the module interface). Interna
 
 This stage requires organizational investment — dedicated platform engineers, a module registry, pipeline infrastructure, and governance tooling. Reaching it is a multi-year journey for most organizations.
 
+```mermaid
+flowchart LR
+    S1["Stage 1\nClickOps\n• Console / CLI\n• No state\n• No audit trail"]
+    S2["Stage 2\nScripted\n• Shell / AWS CLI\n• Imperative\n• Not idempotent"]
+    S3["Stage 3\nDeclarative IaC\n• Terraform\n• Remote state\n• Single team"]
+    S4["Stage 4\nTeam-Scale IaC\n• Versioned modules\n• CI/CD pipelines\n• Split state"]
+    S5["Stage 5\nPlatform Engineering\n• Module registry\n• Policy as Code\n• Continuous drift detection"]
+
+    S1 -->|"First prod incident"| S2
+    S2 -->|"Team grows"| S3
+    S3 -->|"Multi-team pressure"| S4
+    S4 -->|"Org-level investment"| S5
+```
+
 ---
 
 ## 4. Infrastructure Delivery & Patterns
@@ -204,6 +218,28 @@ A CI/CD runner (GitHub Actions, GitLab CI, Atlantis) is triggered by a merge to 
 | **Best for** | Kubernetes-native and cloud resource management | Terraform-centric workflows |
 
 Neither model is universally superior. Most mature platforms use push-based pipelines for Terraform-managed infrastructure (where the blast radius of a misfired reconciliation is high) and pull-based reconciliation for Kubernetes workloads (where convergence speed and drift correction matter more).
+
+```mermaid
+flowchart TD
+    GIT["Git Repository\n(Source of Truth)"]
+
+    subgraph Push["Push-Based — Terraform / Atlantis"]
+        PR["Pull Request"]
+        CI["CI Runner\n(GitHub Actions / Atlantis)"]
+        INFRA_P["Cloud Infrastructure"]
+        PR -->|"terraform plan on PR"| CI
+        CI -->|"terraform apply on merge"| INFRA_P
+    end
+
+    subgraph Pull["Pull-Based — Crossplane / ArgoCD"]
+        CTRL["In-Cluster Controller\n(Crossplane / ArgoCD / Flux)"]
+        INFRA_L["Cloud / K8s Resources"]
+        CTRL -->|"continuous reconcile\nauto-corrects drift"| INFRA_L
+    end
+
+    GIT -->|"webhook / event"| PR
+    GIT -->|"controller watches"| CTRL
+```
 
 ### Code vs Configuration
 

@@ -90,6 +90,72 @@ const allEntries = await getCollection('docs');
   <script src="../scripts/toolbar.ts"></script>
   <script src="../scripts/sidebar-resize.ts"></script>
   <script src="../scripts/reading-progress.ts"></script>
+
+  <!-- Mermaid: render ```mermaid code blocks client-side.
+       Shiki syntax-highlights them into <pre data-language="mermaid"><code> blocks.
+       This script strips the HTML, recovers the raw diagram source, and replaces
+       each block with a rendered SVG diagram. -->
+  <script type="module" is:inline>
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: document.documentElement.classList.contains('dark-mode') ? 'dark' : 'default',
+      securityLevel: 'loose',
+    });
+
+    function renderMermaidBlocks() {
+      // Shiki outputs: <pre ... data-language="mermaid"><code>...</code></pre>
+      const blocks = document.querySelectorAll('pre[data-language="mermaid"]');
+
+      blocks.forEach(async (pre, i) => {
+        const code = pre.querySelector('code');
+        if (!code) return;
+
+        // Strip all HTML tags (Shiki wraps each token in <span>) to get raw text
+        const raw = code.innerHTML
+          .replace(/<[^>]+>/g, '')          // remove all HTML tags
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&amp;/g, '&')
+          .replace(/&#39;/g, "'")
+          .replace(/&quot;/g, '"')
+          .trim();
+
+        if (!raw) return;
+
+        try {
+          const id = `mermaid-diagram-${i}`;
+          const { svg } = await mermaid.render(id, raw);
+
+          const wrapper = document.createElement('div');
+          wrapper.className = 'mermaid-diagram';
+          wrapper.innerHTML = svg;
+          pre.replaceWith(wrapper);
+        } catch (err) {
+          console.warn('[mermaid] Failed to render diagram:', err);
+        }
+      });
+    }
+
+    // Re-render when theme changes (dark ↔ light)
+    function reinitOnThemeChange() {
+      const observer = new MutationObserver(() => {
+        const isDark = document.documentElement.classList.contains('dark-mode');
+        mermaid.initialize({
+          startOnLoad: false,
+          theme: isDark ? 'dark' : 'default',
+          securityLevel: 'loose',
+        });
+        // Re-render only if diagrams are already replaced (they won't be <pre> anymore)
+        document.querySelectorAll('.mermaid-diagram').forEach(el => el.remove());
+      });
+      observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    }
+
+    renderMermaidBlocks();
+    reinitOnThemeChange();
+  </script>
 </body>
 </html>
 

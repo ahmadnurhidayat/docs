@@ -42,6 +42,31 @@ The most important property of PrivateLink is **unidirectionality and IP isolati
 | Use case | Service and resource consumption | VPC interconnect | Hub-and-spoke networking |
 | Scales to many consumers | Yes — one endpoint service, many consumers | No — one peering per pair | Yes — attach many VPCs |
 
+```mermaid
+flowchart TD
+    subgraph Producer["Producer VPC\n(Service provider)"]
+        SVC["Service Backend\n(ECS / EC2)"]
+        NLB["Network Load Balancer"]
+        EP_SVC["Endpoint Service\n(com.amazonaws.vpce.…)"]
+        SVC --> NLB --> EP_SVC
+    end
+
+    subgraph ConsumerA["Consumer VPC A"]
+        ENI_A["Interface Endpoint ENI\n10.0.1.45"]
+        APP_A["Application A"]
+        ENI_A --> APP_A
+    end
+
+    subgraph ConsumerB["Consumer VPC B\n(different account)"]
+        ENI_B["Interface Endpoint ENI\n10.1.1.78"]
+        APP_B["Application B"]
+        ENI_B --> APP_B
+    end
+
+    EP_SVC <-->|"PrivateLink\n(AWS internal fabric)"| ENI_A
+    EP_SVC <-->|"PrivateLink\n(AWS internal fabric)"| ENI_B
+```
+
 PrivateLink is not a general-purpose networking solution. It doesn't replace TGW or peering for workloads that need full bidirectional connectivity. It is purpose-built for the **service consumption pattern**: one party produces a service or resource, and many others consume it privately.
 
 ---

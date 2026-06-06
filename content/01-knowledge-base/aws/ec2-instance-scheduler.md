@@ -74,6 +74,34 @@ The hub account hosts all control-plane components:
 - **SNS Topic**: Receives Lambda error notifications. Wire this to your alerting stack.
 - **CloudWatch Log Groups**: One per Lambda. Structured JSON logs.
 
+```mermaid
+flowchart TD
+    subgraph Hub["Hub Account (Shared Services)"]
+        EB["EventBridge Rule\nevery 5 min"]
+        ORCH["Orchestrator Lambda"]
+        SCHED["Scheduling Lambda\n(per account × region)"]
+        DDB["DynamoDB Config Table\nschedules, periods, accounts"]
+        SNS["SNS Topic\n(error alerts)"]
+
+        EB --> ORCH --> SCHED
+        SCHED <-->|"read config"| DDB
+        SCHED -->|"errors"| SNS
+    end
+
+    subgraph SpokeDev["Spoke: dev account"]
+        ROLE_DEV["InstanceSchedulerCrossAccountRole"]
+        EC2_DEV["EC2 / RDS\nTag: Schedule=office-hours"]
+    end
+
+    subgraph SpokeTest["Spoke: test account"]
+        ROLE_TEST["InstanceSchedulerCrossAccountRole"]
+        EC2_TEST["EC2 / RDS\nTag: Schedule=office-hours"]
+    end
+
+    SCHED -->|"AssumeRole"| ROLE_DEV --> EC2_DEV
+    SCHED -->|"AssumeRole"| ROLE_TEST --> EC2_TEST
+```
+
 ### DynamoDB Table Schema
 
 The configuration table uses a simple `type` + `name` primary key. Understanding this schema is critical for debugging and for writing automation that manages schedules programmatically.

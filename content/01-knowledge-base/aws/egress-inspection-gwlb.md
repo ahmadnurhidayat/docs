@@ -174,6 +174,34 @@ Distributed inspection makes sense when:
 - Regulatory requirements mandate traffic not leave a VPC boundary before inspection.
 - You are retrofitting inspection into a flat, non-TGW architecture where centralization is not practical.
 
+```mermaid
+flowchart TD
+    subgraph Centralized["Model A — Centralized Inspection"]
+        APP_C["Workload\n(Spoke VPC)"]
+        TGW_C["Transit Gateway"]
+        subgraph InspVPC["Inspection VPC"]
+            GWLB_EP["GWLB Endpoint"]
+            GWLB["Gateway Load Balancer"]
+            FLEET["Appliance Fleet\n(Palo Alto / Fortinet)"]
+            NAT_C["NAT Gateway"]
+            IGW_C["Internet Gateway"]
+        end
+        APP_C -->|"0.0.0.0/0"| TGW_C --> GWLB_EP --> GWLB --> FLEET
+        FLEET --> GWLB --> GWLB_EP --> NAT_C --> IGW_C
+    end
+
+    subgraph Distributed["Model B — Distributed Inspection"]
+        APP_D["Workload\n(Spoke VPC)"]
+        GWLB_EP_D["GWLB Endpoint\n(in spoke VPC)"]
+        GWLB_D["Shared GWLB\n(Inspection VPC)"]
+        FLEET_D["Appliance Fleet"]
+        NAT_D["NAT Gateway\n(in spoke VPC)"]
+        IGW_D["Internet Gateway"]
+        APP_D --> GWLB_EP_D --> GWLB_D --> FLEET_D
+        FLEET_D --> GWLB_D --> GWLB_EP_D --> NAT_D --> IGW_D
+    end
+```
+
 ---
 
 ## 4. Routing Design

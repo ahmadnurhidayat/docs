@@ -35,6 +35,34 @@ This also means Kubernetes has **no single point of coordination**. The API serv
 
 Understanding this model explains most Kubernetes behavior, including why eventual consistency is a property of the system by design, not a bug.
 
+```mermaid
+flowchart TD
+    subgraph ControlPlane["Control Plane"]
+        API["kube-apiserver\n(only component touching etcd)"]
+        ETCD["etcd\n(cluster state)"]
+        SCHED["kube-scheduler\n(watches unscheduled pods)"]
+        CM["kube-controller-manager\n(ReplicaSet, Deployment, Node…)"]
+        API <--> ETCD
+        SCHED -->|"writes Binding"| API
+        CM -->|"watch + reconcile"| API
+    end
+
+    subgraph Node["Worker Node"]
+        KUBELET["kubelet\n(watches pods assigned to node)"]
+        CRI["containerd / CRI-O"]
+        RUNC["runc\n(OCI runtime)"]
+        CNI["CNI plugin\n(network setup)"]
+        KUBELET --> CRI --> RUNC
+        KUBELET --> CNI
+    end
+
+    USER["kubectl apply"]
+    USER -->|"REST"| API
+    API -->|"watch events"| SCHED
+    API -->|"watch events"| CM
+    API -->|"watch events"| KUBELET
+```
+
 ---
 
 ## 2. The API Server
@@ -52,6 +80,17 @@ Every request to the API server passes through a sequential pipeline before it t
 **Admission control** is a post-authorization step that can mutate or validate the request before it is persisted. Admission controllers are plugins that run in sequence. **Mutating admission webhooks** can modify the object — the IRSA webhook that injects environment variables into pods is a mutating admission webhook. **Validating admission webhooks** can reject requests that do not meet policy — OPA/Gatekeeper and Kyverno work this way. Built-in admission controllers handle things like setting default resource requests, enforcing namespace limits, and injecting default service accounts.
 
 **Persistence** is the final step — the validated, admitted object is written to etcd, and the API server returns a response to the caller.
+
+```mermaid
+flowchart LR
+    REQ["Incoming Request\n(kubectl / controller / kubelet)"]
+    AUTHN["Authentication\nWho is making the request?\n(cert / token / OIDC)"]
+    AUTHZ["Authorization\nIs the action allowed?\n(RBAC ClusterRole/Role)"]
+    ADMIT["Admission Control\nMutating webhooks → Validating webhooks"]
+    PERSIST["Persist to etcd\nReturn response to caller"]
+
+    REQ --> AUTHN --> AUTHZ --> ADMIT --> PERSIST
+```
 
 ### The Watch Mechanism
 

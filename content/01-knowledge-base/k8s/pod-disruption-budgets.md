@@ -135,6 +135,28 @@ The Eviction API is a Kubernetes sub-resource of the Pod object. Rather than del
 
 A 429 response means "budget exhausted, try again later." The caller is expected to retry after a delay. A 500 response means something went wrong. Tools like `kubectl drain` handle 429 automatically — they poll and retry until the eviction succeeds or a timeout is reached.
 
+```mermaid
+sequenceDiagram
+    participant DRAIN as kubectl drain / Autoscaler
+    participant API as API Server (Eviction API)
+    participant PDB as PDB Controller
+    participant KL as kubelet
+
+    DRAIN->>API: POST /pods/{pod}/eviction
+    API->>PDB: Check PDB: would eviction violate budget?
+    alt disruptionsAllowed > 0
+        PDB-->>API: Budget allows eviction
+        API->>API: Decrement disruptionsAllowed
+        API->>KL: Gracefully delete pod
+        KL-->>API: Pod terminated
+        API-->>DRAIN: 200 OK
+    else disruptionsAllowed == 0
+        PDB-->>API: Budget exhausted
+        API-->>DRAIN: 429 Too Many Requests
+        DRAIN->>DRAIN: Wait + retry
+    end
+```
+
 ### PDB Status Fields
 
 The PDB object's `status` field exposes the current state of the budget in real time:
