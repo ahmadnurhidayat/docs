@@ -36,11 +36,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      # Fix: Synchronized version bundle explicitly down to stable v3 matching your initialization strategy
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
           languages: ${{ matrix.language }}
-          # security-and-quality gives broader coverage than security-extended
+          # security-and-quality gives broader SAST coverage than security-extended
           queries: security-and-quality
 
       - name: Setup Node.js
@@ -52,13 +53,18 @@ jobs:
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit --no-fund
 
-      # Autobuild handles JS/TS — building also ensures generated code is analyzed
-      - name: Autobuild
-        uses: github/codeql-action/autobuild@v4
+      - name: Build Code Template
+        run: |
+          if npm run | grep -q "build"; then
+            echo "Executing custom project build steps..."
+            npm run build
+          else
+            echo "No explicit build script found in package.json, continuing to analysis..."
+          fi
 
       - name: Perform CodeQL Analysis
         id: codeql
-        uses: github/codeql-action/analyze@v4
+        uses: github/codeql-action/analyze@v3
         with:
           category: /language:${{ matrix.language }}
           output: codeql-results
@@ -73,12 +79,12 @@ jobs:
           if-no-files-found: ignore
 
       - name: Comment CodeQL result on PR
-        if: github.event_name == 'pull_request'
+        if: always() && github.event_name == 'pull_request'
         uses: actions/github-script@v7
         with:
           script: |
             const outcome = '${{ steps.codeql.outcome }}';
-            const marker = '<!-- codeql-analysis-result -->';
+            const marker = '';
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -95,7 +101,7 @@ jobs:
               '',
               passed
                 ? 'CodeQL analysis completed with no findings.'
-                : '> **Action required:** CodeQL found potential issues. Check the [Security tab](${{ github.server_url }}/${{ github.repository }}/security/code-scanning) or download the `codeql-sarif` artifact for details.',
+                : '> **Action required:** CodeQL found potential quality or security issues. Check your repository **Security tab > Code scanning alerts** or download the matching `codeql-sarif` artifact for details.',
               '',
               `**Run:** [#${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})`,
             ].join('\n');
