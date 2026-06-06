@@ -169,16 +169,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
-      - name: Trivy filesystem scan
+      - name: Setup Trivy CLI
+        uses: aquasecurity/setup-trivy@v0.3.1
+
+      - name: Trivy Filesystem Scan
         id: trivy_scan
-        uses: aquasecurity/trivy-action@v0.28.0
-        with:
-          scan-type: 'fs'
-          scan-ref: '.'
-          ignore-unfixed: true
-          format: 'sarif'
-          output: 'trivy-results.sarif'
-          severity: 'CRITICAL,HIGH'
+        run: |
+          trivy fs . \
+            --ignore-unfixed \
+            --format sarif \
+            --output trivy-results.sarif \
+            --severity CRITICAL,HIGH
         continue-on-error: true
 
       # Upload to GitHub Security tab — visible under Security > Code scanning alerts
