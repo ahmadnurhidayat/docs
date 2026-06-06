@@ -147,14 +147,14 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - run: pip install flake8 && flake8 src/
 
   unit-test:
     needs: lint          # Only runs if lint passes
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - run: pytest tests/unit/ --cov=src --cov-report=xml
       - uses: actions/upload-artifact@v4
         with:
@@ -165,7 +165,7 @@ jobs:
     needs: unit-test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - run: docker build -t myapp:${{ github.sha }} .
 
   integration-test:
@@ -177,7 +177,7 @@ jobs:
         env:
           POSTGRES_PASSWORD: test
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - run: pytest tests/integration/
 ```
 
