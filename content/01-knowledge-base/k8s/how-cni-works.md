@@ -110,6 +110,28 @@ When the Kubernetes scheduler assigns a pod to a node, the following sequence oc
 6. The container runtime starts the pod's application containers inside the already-networked namespace.
 7. **kubelet** reports the pod's IP to the API server, where it becomes visible in `kubectl get pods -o wide`.
 
+```mermaid
+sequenceDiagram
+    participant KS as kube-scheduler
+    participant API as API Server
+    participant KL as kubelet
+    participant RT as containerd
+    participant CNI as CNI Plugin
+    participant IPAM as IPAM Plugin
+
+    KS->>API: Write Binding (pod → node)
+    API->>KL: Watch event: pod assigned
+    KL->>RT: Create pod sandbox (CRI)
+    RT->>RT: Create network namespace (empty)
+    RT->>CNI: Invoke ADD (netns, containerID, config)
+    CNI->>IPAM: Allocate IP from pool
+    IPAM-->>CNI: IP address assigned
+    CNI->>CNI: Create veth pair, add routes, connect to bridge
+    CNI-->>RT: Return assigned IP
+    RT->>RT: Start application containers in namespace
+    KL->>API: Report pod IP (visible in kubectl get pods)
+```
+
 ### Pod Teardown Sequence
 
 When a pod is deleted, the sequence reverses. kubelet instructs the runtime to stop the containers and invoke the CNI plugin with the DEL operation. The plugin removes the veth pair, releases the IP back to the IPAM pool, and cleans up any routes or iptables rules it installed. The network namespace is then destroyed by the runtime.
@@ -149,6 +171,28 @@ eBPF (extended Berkeley Packet Filter) is a Linux kernel technology that allows 
 The advantages are significant: lower per-packet latency, O(1) service lookup (vs iptables' linear chain traversal), richer observability (eBPF programs can emit structured events about every flow), and the ability to enforce L7-aware policies without a sidecar proxy. The disadvantage is a minimum kernel version requirement (4.9 for basic eBPF, 5.x for advanced features) and operational complexity — debugging eBPF programs requires different tooling than iptables.
 
 Cilium is the leading eBPF-native CNI. It replaces kube-proxy entirely and provides a dataplane that has no iptables dependency.
+
+```mermaid
+flowchart TD
+    subgraph Overlay["Overlay — Flannel VXLAN"]
+        PA1["Pod A\n10.244.1.5"] -->|"eth0 → veth"| BR1["cni0 bridge"]
+        BR1 -->|"route: 10.244.2.0/24 via flannel.1"| VX1["flannel.1\nVXLAN encap"]
+        VX1 -->|"UDP outer dst: Node 2 IP"| NET1["Physical Network"]
+        NET1 --> VX2["flannel.1\nVXLAN decap"]
+        VX2 --> BR2["cni0 bridge"] --> PB1["Pod B\n10.244.2.8"]
+    end
+
+    subgraph Underlay["Underlay — Calico BGP"]
+        PA2["Pod A"] -->|"eth0 → veth"| R1["Node 1 routing\nBGP route: 10.244.2.0/24 → Node 2"]
+        R1 -->|"no encap, native IP"| NET2["Physical Network\n(sees pod IPs directly)"]
+        NET2 --> R2["Node 2 routing"] --> PB2["Pod B"]
+    end
+
+    subgraph EBPF["eBPF — Cilium"]
+        PA3["Pod A"] -->|"socket-level\neBPF hook"| EBP["eBPF map\nO(1) Service/Policy lookup"]
+        EBP -->|"direct forwarding\nno iptables"| PB3["Pod B"]
+    end
+```
 
 ---
 

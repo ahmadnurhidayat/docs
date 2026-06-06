@@ -87,6 +87,36 @@ Golden-path starter templates configured with foundational security, observabili
 | **Fullstack Monolith** | `{project}-app` | `retail-pos-app` |
 | **Boilerplate Template**| `{framework}-{type}-template` | `spring-boot-api-template` |
 
+```mermaid
+flowchart TD
+    ROOT["{project-or-org}"]
+
+    BE["Backend"]
+    FE["Frontend"]
+    MOB["Mobile"]
+    DESK["Desktop"]
+    FULL["Fullstack"]
+    TMPL["Template"]
+
+    MONO["{project}-general-api\ne.g. retail-general-api"]
+    SVC_API["{project}-service-{name}-api\ne.g. retail-service-inventory-api"]
+    SVC_CRON["{project}-service-{name}-cron\ne.g. retail-service-inventory-cron"]
+    SVC_WRK["{project}-service-{name}-worker\ne.g. retail-service-payment-worker"]
+    FE_NODE["{project}-{sub-domain}-fe\ne.g. retail-dashboard-fe"]
+    MOB_NODE["{project}-mobile-{platform}\ne.g. retail-mobile-flutter"]
+    DESK_NODE["{project}-desktop-{framework}\ne.g. retail-manager-electron"]
+    FULL_NODE["{project}-app\ne.g. retail-pos-app"]
+    TMPL_NODE["{framework}-{type}-template\ne.g. nestjs-api-template"]
+
+    ROOT --> BE & FE & MOB & DESK & FULL & TMPL
+    BE --> MONO & SVC_API & SVC_CRON & SVC_WRK
+    FE --> FE_NODE
+    MOB --> MOB_NODE
+    DESK --> DESK_NODE
+    FULL --> FULL_NODE
+    TMPL --> TMPL_NODE
+```
+
 ---
 
 ## 4. Operational & Engineering Benefits
@@ -97,3 +127,26 @@ Enforcing this standard universally across the engineering org unlocks clear str
 * 🤖 **Automation and CI/CD Scalability:** Allows DevOps pipelines to parse the repository name string dynamically to infer build rules (e.g., a repo ending in `-fe` matches static SPA cloud hosting rules, while `-cron` triggers a Kubernetes CronJob configuration deployment).
 * 🔍 **Precise Discoverability:** Standardizes search queries inside code search engines. Filtering across internal platforms via terms like `service-` or `-fe` seamlessly groups relevant resources together.
 * 🔒 **Role-Based Access Control (RBAC):** Simplifies repository permission syncing scripts (e.g., giving the Mobile Engineering squad access to any repository matching `*-mobile-*` automatically).
+
+```mermaid
+flowchart TD
+    REPO["Repository Name\ne.g. retail-service-inventory-cron"]
+
+    PARSE{"CI/CD pipeline\nparses repo name suffix"}
+
+    FE_RULE["Matches *-fe\n→ Static SPA build\n→ CDN / Cloud Storage deploy"]
+    API_RULE["Matches *-api\n→ Docker build\n→ Kubernetes Deployment"]
+    CRON_RULE["Matches *-cron\n→ Docker build\n→ Kubernetes CronJob"]
+    WRK_RULE["Matches *-worker\n→ Docker build\n→ Kubernetes Deployment\n(queue consumer)"]
+    MOB_RULE["Matches *-mobile-*\n→ Mobile CI (Fastlane)\n→ App Store / Play Store"]
+
+    RBAC{"RBAC sync\nparses repo name prefix/suffix"}
+    MOBILE_TEAM["*-mobile-* → Mobile Squad access"]
+    INFRA_TEAM["tf-* or *-infra → Platform Team access"]
+    FE_TEAM["*-fe → Frontend Squad access"]
+
+    REPO --> PARSE
+    PARSE --> FE_RULE & API_RULE & CRON_RULE & WRK_RULE & MOB_RULE
+    REPO --> RBAC
+    RBAC --> MOBILE_TEAM & INFRA_TEAM & FE_TEAM
+```

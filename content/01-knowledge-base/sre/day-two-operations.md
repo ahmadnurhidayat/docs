@@ -128,6 +128,30 @@ Google's recommended multi-window alerting approach uses two lookback windows fo
 | Ticket (medium) | 3x | 6 hours | 3 days | ~10 days | Investigate within one day |
 | Ticket (low) | 1x | — | 7 days | At window end | Review in weekly reliability meeting |
 
+```mermaid
+flowchart TD
+    METRIC["SLO Error Rate\n(rolling window)"]
+
+    B1{"Burn rate\n≥ 14.4×?"}
+    B2{"Burn rate\n≥ 6×?"}
+    B3{"Burn rate\n≥ 3×?"}
+    B4{"Budget consuming\nat normal pace?"}
+
+    P1["🔴 PAGE — Critical\nBudget exhausts in ~2 hours\nImmediate on-call response"]
+    P2["🟠 PAGE — High\nBudget exhausts in ~5 hours\nRespond within 30 minutes"]
+    T1["🟡 TICKET — Medium\nBudget exhausts in ~10 days\nInvestigate within 1 day"]
+    T2["🟢 TICKET — Low\nBudget on pace\nReview in weekly meeting"]
+
+    METRIC --> B1
+    B1 -->|"Yes"| P1
+    B1 -->|"No"| B2
+    B2 -->|"Yes"| P2
+    B2 -->|"No"| B3
+    B3 -->|"Yes"| T1
+    B3 -->|"No"| B4
+    B4 -->|"Yes"| T2
+```
+
 ---
 
 ## 4. Incident Management
@@ -173,6 +197,39 @@ A well-managed incident moves through four phases, each with distinct goals and 
 | Investigation & Diagnosis | Find root cause | Keep team focused, prevent rabbit holes | Examine logs, metrics, traces; form hypotheses |
 | Mitigation & Remediation | Restore service | Authorize mitigation attempts | Execute rollback, flag disable, traffic reroute |
 | Resolution & Closure | Confirm recovery and capture timeline | Declare resolution, schedule postmortem | Document timeline while context is fresh |
+
+```mermaid
+flowchart TD
+    ALERT["Alert fires / User report"]
+
+    subgraph Triage["1. Detection & Triage"]
+        ACK["On-call acknowledges"]
+        SEV["Assess severity\n(Sev1–Sev4)"]
+        DECLARE["Declare incident\nConvene response team"]
+    end
+
+    subgraph Investigate["2. Investigation & Diagnosis"]
+        LOGS["Examine logs, metrics, traces"]
+        HYPO["Form hypotheses"]
+        TEST["Test hypotheses"]
+    end
+
+    subgraph Mitigate["3. Mitigation & Remediation"]
+        MIT["Mitigate first\n(rollback / feature flag / reroute)"]
+        REM["Permanent fix\n(once service restored)"]
+    end
+
+    subgraph Resolve["4. Resolution & Closure"]
+        CLEAR["Declare resolution\nAll-clear notification"]
+        DOC["Document timeline\nSchedule postmortem (Sev1/2)"]
+    end
+
+    ALERT --> ACK --> SEV --> DECLARE
+    DECLARE --> LOGS --> HYPO --> TEST
+    TEST -->|"Cause found"| MIT
+    TEST -->|"Inconclusive"| HYPO
+    MIT --> REM --> CLEAR --> DOC
+```
 
 ---
 

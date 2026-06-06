@@ -14,25 +14,22 @@ The design targets a centralized, resilient split routing model using the domain
 * **Internal Routing Layer:** Any query targeting `*.internal.orbitvault.com` must bypass public lookups and route entirely to the private corporate network namespaces at `10.0.0.1` and `10.0.0.2`.
 * **Public Routing Layer:** Any standard corporate query targeting `*.orbitvault.com` (omitting the `.internal` boundary) or any general internet zone lookup must route out to public DNS resolvers (`8.8.8.8` and `1.1.1.1`).
 
-```
-                              ┌─────────────────────────┐
-                              │    Client DNS Request   │
-                              └────────────┬────────────┘
-                                           │
-                                           ▼
-                       ┌───────────────────────────────────────┐
-                       │   Intelligent Edge Forwarder Proxy    │
-                       │     (BIND9 / dnsmasq / Unbound)       │
-                       └───────────────────┬───────────────────┘
-                                           │
-                    ┌──────────────────────┴──────────────────────┐
-                    │ Domain Matches                              │ Domain Matches
-                    │ *.internal.orbitvault.com                   │ * (Default Fallback)
-                    ▼                                             ▼
-       ┌─────────────────────────┐                   ┌─────────────────────────┐
-       │   Private DNS Servers   │                   │   Public DNS Servers    │
-       │  10.0.0.1 / 10.0.0.2    │                   │    8.8.8.8 / 1.1.1.1    │
-       └─────────────────────────┘                   └─────────────────────────┘
+```mermaid
+flowchart TD
+    A["Client DNS Request"]
+    B["Edge Forwarder\nBIND9 / dnsmasq / Unbound"]
+    C{"Domain match?"}
+    D["*.internal.orbitvault.com"]
+    E["* — Default Fallback"]
+    F["Private DNS Servers\n10.0.0.1 / 10.0.0.2"]
+    G["Public DNS Servers\n8.8.8.8 / 1.1.1.1"]
+
+    A --> B
+    B --> C
+    C -->|Internal zone| D
+    C -->|Everything else| E
+    D --> F
+    E --> G
 ```
 
 ---

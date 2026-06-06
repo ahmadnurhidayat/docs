@@ -71,6 +71,23 @@ A PRR produces one of three outcomes. An approved PRR means the service meets th
 
 The deferred outcome is the one that requires the most care in delivery. It must be communicated as a collaborative finding, not a rejection. The SRE team should provide a concrete list of what would need to change for the service to pass a future PRR, and should offer to consult on the engineering approach to those changes. A deferred PRR that leaves the development team unclear on what they need to build to get SRE support has failed its purpose.
 
+```mermaid
+flowchart TD
+    START["New service ready\nfor SRE acceptance"]
+    PRR["Production Readiness Review\n• Architecture & failure design\n• Observability\n• Deployment & rollback\n• Capacity & scaling\n• Runbooks\n• SLO + error budget policy"]
+
+    APPROVED["Approved\nSRE accepts on-call\non agreed date"]
+    CONDITIONAL["Conditionally Approved\nBlocking issues listed\nTimeline for fixes set\nFollow-up review scheduled"]
+    DEFERRED["Deferred\nFundamental gaps found\nSRE consults on remediation\nRe-review when resolved"]
+
+    START --> PRR
+    PRR -->|"All criteria met"| APPROVED
+    PRR -->|"Specific fixes required"| CONDITIONAL
+    CONDITIONAL -->|"Issues resolved"| APPROVED
+    PRR -->|"Architectural / observability gaps"| DEFERRED
+    DEFERRED -->|"Investment made"| PRR
+```
+
 ### PRR Anti-Patterns
 
 The PRR process fails in two directions. It fails by being too permissive — approving services that do not meet the bar because of organizational pressure, relationship dynamics, or a desire to avoid conflict. Each approval below the bar adds operational burden that the SRE team absorbs indefinitely. It fails by being too rigid — treating the PRR as a checklist audit rather than a reliability design review, applying the same bar to an internal batch job and a customer-facing payment API, and creating a reputation as a bureaucratic gatekeeper rather than an engineering partner.
@@ -90,6 +107,27 @@ A safe handoff requires the SRE team to reach a threshold of operational familia
 The practical mechanism for building this familiarity is a shadowing period. During shadowing, the development team carries the primary pager while the SRE team shadows the rotation — receiving the same alerts, joining incident calls, observing remediation steps, and asking questions. The SRE team documents what they learn, updates runbooks where they find gaps, and identifies the failure modes the runbooks do not cover. After the shadowing period, the teams reverse: the SRE team carries the primary pager while the development team shadows, available to answer questions but not taking action unless the SRE team explicitly asks. Full handoff happens only after this reverse-shadow period confirms the SRE team can operate the service independently.
 
 Skipping the shadowing period — handing the pager to the SRE team because a deadline requires it, because the development team is moving on to a new project, or because the PRR was approved and the handoff feels like a formality — produces an on-call team that pages the development team for guidance on every non-trivial alert. The operational load does not transfer; it duplicates.
+
+```mermaid
+sequenceDiagram
+    participant DEV as Dev Team
+    participant SRE as SRE Team
+
+    Note over DEV,SRE: Phase 1 — Shadowing (2–4 weeks)
+    DEV->>DEV: Carries primary pager
+    SRE->>DEV: Shadows alerts, joins incidents
+    SRE->>SRE: Documents gaps, updates runbooks
+
+    Note over DEV,SRE: Phase 2 — Reverse Shadow (2–4 weeks)
+    SRE->>SRE: Carries primary pager
+    DEV->>SRE: Available to answer questions
+    SRE->>DEV: Escalates only when blocked
+
+    Note over DEV,SRE: Phase 3 — Full Handoff
+    SRE->>SRE: Owns pager independently
+    SRE->>DEV: Escalates per agreed runbook only
+    DEV->>SRE: Delivers promised PRR action items
+```
 
 ### The Handoff Document
 

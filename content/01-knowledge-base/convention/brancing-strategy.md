@@ -8,14 +8,14 @@ Establishing a well-organized branching strategy is critical for managing code q
 
 The repository structure relies on three permanent primary branches. Each branch represents a distinct state of the codebase and maps directly to an isolated runtime environment.
 
-```
- [main]      ─────────────────────────────► Production Environment
-   ▲
-   │ (Release / Hotfix Merge)
- [staging]   ───────────────► Staging / Pre-Production Environment
-   ▲
-   │ (Integration Merge)
- [dev]       ──────► Development / QA Environment
+```mermaid
+flowchart LR
+    DEV["dev\nDevelopment / QA\n(volatile, always-on)"]
+    STG["staging\nPre-Production\n(mirrors prod config)"]
+    MAIN["main\nProduction\n(protected, SemVer tagged)"]
+
+    DEV -->|"integration merge\n(PR + CI green)"| STG
+    STG -->|"release merge\n(fast-forward)"| MAIN
 ```
 
 ### 1.1 `main`
@@ -85,15 +85,29 @@ Used to modify build steps, delivery pipelines, GitHub Actions workflows, Terraf
 
 ### 3.1 Merging Mechanics
 
-```
-   ┌──────────────┐         ┌──────────┐         ┌─────────────┐
-   │ Feature / Fix│ ──────► │   dev    │ ──────► │   staging   │
-   └──────────────┘         └────┬─────┘         └──────┬──────┘
-                                 ▲                      │
-                                 │                      ▼
-   ┌──────────────┐              │               ┌─────────────┐
-   │    Hotfix    │ ─────────────┴────────────── │    main     │
-   └──────────────┘                              └─────────────┘
+```mermaid
+flowchart TD
+    subgraph Ephemeral["Ephemeral Branches (short-lived)"]
+        FEAT["username/feat/feature-slug\n(branched from dev)"]
+        FIX["username/fix/bug-slug\n(branched from dev)"]
+        HOT["username/hotfix/issue-slug\n(branched from main)"]
+        CI_BR["username/ci/pipeline-slug\n(branched from dev)"]
+    end
+
+    subgraph Primary["Primary Branches (permanent)"]
+        DEV["dev\n→ Dev/QA Environment"]
+        STG["staging\n→ Staging Environment"]
+        MAIN["main\n→ Production Environment\n(SemVer tagged on merge)"]
+    end
+
+    FEAT -->|"PR + squash merge"| DEV
+    FIX -->|"PR + squash merge"| DEV
+    CI_BR -->|"PR + squash merge"| DEV
+    DEV -->|"milestone PR"| STG
+    STG -->|"release PR"| MAIN
+
+    HOT -->|"PR (immediate fix)"| MAIN
+    HOT -->|"PR (parity sync)"| DEV
 ```
 
 1. **Standard Feature/Fix Pipeline:**
@@ -119,6 +133,24 @@ Every merge execution into the `main` branch constitutes a formal release candid
 * **Minor (`v1.1.0`):** Backward-compatible functional introductions or features.
 * **Patch (`v1.1.1`):** Backward-compatible production hotfixes or bug remediations.
 * **Prerelease (`v1.0.0-beta.1`):** Pre-release checks executed inside the staging boundaries.
+
+```mermaid
+flowchart LR
+    BREAKING["Breaking change\n(API incompatible)"]
+    FEATURE["New feature\n(backward-compatible)"]
+    BUGFIX["Bug fix / hotfix\n(backward-compatible)"]
+    PREREL["Pre-release\n(staging validation)"]
+
+    MAJOR["v2.0.0\n(Major bump)"]
+    MINOR["v1.1.0\n(Minor bump)"]
+    PATCH["v1.0.1\n(Patch bump)"]
+    BETA["v2.0.0-beta.1\n(Pre-release tag)"]
+
+    BREAKING --> MAJOR
+    FEATURE --> MINOR
+    BUGFIX --> PATCH
+    PREREL --> BETA
+```
 
 ### 3.3 Branch Sanitization & Housekeeping
 To prevent repository clutter, reduce visual overhead, and simplify maintenance:

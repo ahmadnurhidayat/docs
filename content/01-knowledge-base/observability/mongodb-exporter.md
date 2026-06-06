@@ -10,18 +10,16 @@ This guide covers the complete setup: creating a least-privilege database user, 
 
 The exporter runs as a separate process alongside MongoDB. It authenticates with a read-only monitoring user, polls MongoDB's diagnostic endpoints, and exposes them at `http://<host>:9216/metrics` for Prometheus to scrape.
 
-```
-+─────────────────────+        Authenticated Query     +────────────────────+
-│  MongoDB Instance   │ ◄──────────────────────────── │  mongodb_exporter  │
-│    (Port 27017)     │                                │    (Port 9216)     │
-+─────────────────────+                                +─────────┬──────────+
-                                                                 │
-                                                                 │  /metrics
-                                                                 ▼
-+─────────────────────+         PromQL Queries          +────────────────────+
-│  Grafana Dashboard  │ ◄───────────────────────────── │ Prometheus Server  │
-│     (Port 3000)     │                                │    (Port 9090)     │
-+─────────────────────+                                +────────────────────+
+```mermaid
+flowchart LR
+    EXP["mongodb_exporter\nPort 9216"]
+    MONGO["MongoDB Instance\nPort 27017"]
+    PROM["Prometheus Server\nPort 9090"]
+    GRAFANA["Grafana Dashboard\nPort 3000"]
+
+    EXP -->|"Authenticated Query\n(clusterMonitor role)"| MONGO
+    PROM -->|"Scrape /metrics\nevery 15s"| EXP
+    GRAFANA -->|"PromQL Queries"| PROM
 ```
 
 ### 1.1 What Gets Collected
@@ -188,7 +186,34 @@ scrape_configs:
           cluster: 'rs0'
 ```
 
-For replica sets, add one target per member:
+For replica sets, deploy one exporter per member and add one target per member. This is the recommended topology — a single exporter pointed at the replica set URI will only ever collect from whichever member the driver selects:
+
+```mermaid
+flowchart TD
+    PROM["Prometheus Server"]
+
+    subgraph RS["Replica Set: rs0"]
+        subgraph N1["mongo-1 (PRIMARY)"]
+            E1["mongodb_exporter\n:9216"]
+            M1["mongod\n:27017"]
+            E1 -->|"direct-connect"| M1
+        end
+        subgraph N2["mongo-2 (SECONDARY)"]
+            E2["mongodb_exporter\n:9216"]
+            M2["mongod\n:27017"]
+            E2 -->|"direct-connect"| M2
+        end
+        subgraph N3["mongo-3 (SECONDARY)"]
+            E3["mongodb_exporter\n:9216"]
+            M3["mongod\n:27017"]
+            E3 -->|"direct-connect"| M3
+        end
+    end
+
+    PROM -->|"scrape\nrole=primary"| E1
+    PROM -->|"scrape\nrole=secondary"| E2
+    PROM -->|"scrape\nrole=secondary"| E3
+```
 
 ```yaml
 static_configs:

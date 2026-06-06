@@ -44,9 +44,24 @@ These ten rules are the foundation. Violations of any one of them are usually tr
 
 Stage order is not arbitrary. Each stage should be ordered by cost (time + compute) ascending, and by signal quality descending. A lint failure should surface in 60 seconds, not after a 10-minute Docker build.
 
-```
-Code Push → Lint → Unit Tests → Build → Integration Tests → Security Scan
-         → Publish Artifact → Deploy Staging → Smoke Tests → Deploy Prod → Post-deploy Verification
+```mermaid
+flowchart LR
+    PUSH["Code Push"]
+    LINT["Lint\n~1 min"]
+    UNIT["Unit Tests\n~2-5 min"]
+    BUILD["Build\n~3-8 min"]
+    INTEG["Integration Tests\n~5 min"]
+    SEC["Security Scan\n~2 min"]
+    PUBLISH["Publish Artifact"]
+    STG["Deploy Staging"]
+    SMOKE["Smoke Tests"]
+    PROD["Deploy Prod"]
+    POST["Post-deploy\nVerification"]
+
+    PUSH --> LINT & UNIT & SEC
+    LINT & UNIT & SEC -->|"all pass\n(quality gate)"| BUILD
+    BUILD --> INTEG
+    INTEG --> PUBLISH --> STG --> SMOKE --> PROD --> POST
 ```
 
 ### Stage Reference

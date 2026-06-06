@@ -29,6 +29,24 @@ From this research emerged four specific metrics — now called the DORA metrics
 
 The four metrics split cleanly into two dimensions. Deployment Frequency and Lead Time for Changes measure **throughput** — how fast the team delivers software. Change Failure Rate and Time to Restore Service measure **stability** — how reliably the software behaves in production. A healthy delivery system scores well on both dimensions simultaneously. A team that is fast but unstable, or stable but slow, is suboptimal in ways that the metrics make visible.
 
+```mermaid
+flowchart LR
+    subgraph Throughput["Throughput Metrics"]
+        DF["Deployment Frequency\nHow often code ships\nto production"]
+        LT["Lead Time for Changes\nFirst commit → production\n(end-to-end pipeline time)"]
+    end
+
+    subgraph Stability["Stability Metrics"]
+        CFR["Change Failure Rate\n% of deploys causing\nan incident or rollback"]
+        TTRS["Time to Restore\nIncident start → service\nfully restored"]
+    end
+
+    ELITE["Elite Teams\nFast AND stable\n(not a trade-off)"]
+
+    Throughput --> ELITE
+    Stability --> ELITE
+```
+
 ### The Elite Performer Gap
 
 The gap between elite and low-performing organizations in the DORA research is not marginal — it is measured in orders of magnitude. Elite performers deploy 973 times more frequently than low performers. They have lead times measured in hours versus months. Their change failure rate is half that of low performers despite deploying hundreds of times more often. This gap is not explained by team size, industry, or technology stack. It is explained by engineering practices: automated testing, trunk-based development, continuous integration, loosely-coupled architecture, and a culture of learning from failure.

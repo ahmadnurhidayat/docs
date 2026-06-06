@@ -43,6 +43,28 @@ A Golden Path is the paved road: the documented, tooling-supported way to build 
 | **DevSecOps** | Security in the delivery pipeline | Security and engineering teams | Compliance automation, earlier CVE detection |
 | **Platform Engineering** | Developer self-service tooling | Application developers | Internal Developer Platform, Golden Paths |
 
+```mermaid
+flowchart LR
+    subgraph Inner["Inner Loop (developer local)"]
+        WRITE["Write code"]
+        BUILD_L["Local build\n(seconds)"]
+        TEST_L["Unit tests\n(seconds)"]
+        DEBUG["Debug"]
+        WRITE --> BUILD_L --> TEST_L --> DEBUG --> WRITE
+    end
+
+    subgraph Outer["Outer Loop (CI/CD — shared)"]
+        PUSH["git push\n(PR opened)"]
+        CI["CI Pipeline\nlint → test → build → scan"]
+        REVIEW["Code review\n+ approval"]
+        MERGE["Merge to main"]
+        DEPLOY["Deploy to\nstaging → prod"]
+        PUSH --> CI --> REVIEW --> MERGE --> DEPLOY
+    end
+
+    Inner -->|"git push"| Outer
+```
+
 ---
 
 ## 2. Inner Loop vs. Outer Loop
@@ -156,6 +178,26 @@ Pull-based CD also provides continuous drift correction as a side effect. If som
 | Network requirement | CI runner must reach cluster API | Cluster must reach Git (outbound only) |
 | Multi-environment scaling | Credentials per environment | Agent per environment, Git is the hub |
 | Examples | GitHub Actions + `kubectl`, Jenkins + SSH | ArgoCD, Flux |
+
+```mermaid
+flowchart LR
+    GIT["Git Repository\n(desired state)"]
+
+    subgraph Push["Push-Based CD"]
+        CI_R["CI Runner\n(holds cluster credentials)"]
+        CLUSTER_P["Cluster"]
+        CI_R -->|"kubectl apply / helm upgrade\n(CI reaches INTO cluster)"| CLUSTER_P
+    end
+
+    subgraph Pull["Pull-Based CD (GitOps)"]
+        AGENT["GitOps Agent\n(ArgoCD / Flux)\nruns inside cluster"]
+        CLUSTER_L["Cluster"]
+        AGENT -->|"reconcile loop\n(cluster pulls FROM Git)"| CLUSTER_L
+    end
+
+    GIT -->|"webhook / push event"| CI_R
+    AGENT -->|"polls for changes"| GIT
+```
 
 ---
 

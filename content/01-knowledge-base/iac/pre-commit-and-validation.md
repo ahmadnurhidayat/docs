@@ -20,6 +20,30 @@ Validating configurations should happen as early as possible in the software dev
 - **Pre-commit is local & fast:** Caught inside the developer workspace before a single file reaches Git. It acts as an *advisory sandbox* to catch 80% of issues early. It can be bypassed using `git commit --no-verify` when experimenting, which keeps developer friction low.
 - **CI/CD is global & authoritative:** Triggered automatically upon PR creation and branch merges. It acts as a *strict validation gate* running plan-dependent security checks. It cannot be bypassed, and it blocks all unapproved merges.
 
+```mermaid
+flowchart LR
+    DEV["Engineer\ngit commit"]
+
+    subgraph Local["Local — Advisory (bypassable)"]
+        FMT["terraform fmt"]
+        SEC["detect-secrets"]
+        LINT["tflint"]
+        CHKV["checkov\n(changed files only)"]
+        OPA_S["conftest\n(static OPA)"]
+    end
+
+    subgraph CI["CI/CD — Authoritative (cannot bypass)"]
+        VAL["terraform validate"]
+        PLAN["terraform plan"]
+        OPA_D["OPA dynamic\n(plan JSON)"]
+        TFSEC["tfsec / checkov\n(full scan)"]
+        GATE["PR blocked until all pass"]
+    end
+
+    DEV --> FMT --> SEC --> LINT --> CHKV --> OPA_S
+    OPA_S -->|"git push"| VAL --> PLAN --> OPA_D --> TFSEC --> GATE
+```
+
 ---
 
 ## 2. Directory Structure
@@ -160,6 +184,27 @@ To maintain developer productivity, local hooks must run quickly. Optimize perfo
 | **Medium (< 15s)** | Every commit | `terraform_validate`, `terraform_tflint`, `conftest-terraform` |
 | **Slow (< 60s)** | Manual / Pre-push | `terraform_checkov` (optimized to scan only changed files) |
 | **Heavy (> 60s)** | CI/CD Runner Only | `terraform plan`, dynamic OPA policy engine evaluations, and system tests |
+
+```mermaid
+flowchart LR
+    subgraph Instant["Instant — every commit"]
+        H1["trailing-whitespace\ncheck-merge-conflict\ncheck-yaml"]
+    end
+    subgraph Fast["Fast — every commit"]
+        H2["terraform_fmt\ndetect-secrets"]
+    end
+    subgraph Medium["Medium — every commit"]
+        H3["terraform_validate\ntflint\nconftest (static OPA)"]
+    end
+    subgraph Slow["Slow — manual / pre-push"]
+        H4["checkov\n(changed files only)"]
+    end
+    subgraph Heavy["Heavy — CI/CD only"]
+        H5["terraform plan\ndynamic OPA\nterratest"]
+    end
+
+    Instant --> Fast --> Medium --> Slow --> Heavy
+```
 
 ---
 

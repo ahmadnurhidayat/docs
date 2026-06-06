@@ -10,21 +10,19 @@ Implementing custom SSH host configurations solves this limitation. By building 
 
 Instead of manually swapping active identity files within your ssh-agent context, you can create custom SSH aliases (`personal.github.com` and `work.github.com`). The local SSH configuration engine catches these aliases, maps them back to the standard `github.com` endpoint, and attaches the specified identity asset implicitly during the connection handshake.
 
-```
-                  [ Git Command Execution ]
-          e.g., git clone git@work.github.com:org/repo.git
-                             │
-                             ▼
-               [ ~/.ssh/config Routing Table ]
-              ┌──────────────┴──────────────┐
-              ▼ Host: personal.github.com   ▼ Host: work.github.com
-              ├── HostName: github.com      ├── HostName: github.com
-              └── IdentityFile: id_personal └── IdentityFile: id_work
-                             │                             │
-                             └──────────────┬──────────────┘
-                                            ▼
-                               [ Target: github.com API ]
+```mermaid
+flowchart TD
+    A["Git Command Execution\ne.g. git clone git@work.github.com:org/repo.git"]
+    B["~/.ssh/config Routing Table"]
+    C["Host: personal.github.com\nHostName: github.com\nIdentityFile: ~/.ssh/id_github_personal"]
+    D["Host: work.github.com\nHostName: github.com\nIdentityFile: ~/.ssh/id_github_work"]
+    E["github.com API"]
 
+    A --> B
+    B --> C
+    B --> D
+    C --> E
+    D --> E
 ```
 
 ### 1.1 Structural Comparison

@@ -190,6 +190,36 @@ CSI Driver Binary          → Linux syscalls → block device / filesystem oper
     (node daemonset pod)
 ```
 
+```mermaid
+flowchart TD
+    API["Kubernetes API Server"]
+
+    subgraph Controller["CSI Controller Pod (Deployment)"]
+        PROV["external-provisioner\nwatches PVC"]
+        ATTACH["external-attacher\nwatches VolumeAttachment"]
+        SNAP["external-snapshotter"]
+        RESIZE["external-resizer"]
+        DRV_C["CSI Driver Binary\n(Controller Service)"]
+        PROV & ATTACH & SNAP & RESIZE -->|"gRPC /csi.sock"| DRV_C
+    end
+
+    subgraph Node["CSI Node Pod (DaemonSet) — per node"]
+        REG["node-driver-registrar\nregisters with kubelet"]
+        DRV_N["CSI Driver Binary\n(Node Service)"]
+        KL["kubelet"]
+        REG --> KL
+        KL -->|"gRPC via plugin socket"| DRV_N
+    end
+
+    CLOUD["Cloud API\n(EC2, Ceph)"]
+    FS["Block Device / Filesystem\n(node-local operations)"]
+
+    API --> PROV
+    API --> ATTACH
+    DRV_C -->|"CreateVolume\nAttachVolume\nCreateSnapshot"| CLOUD
+    DRV_N -->|"mkfs, mount, bind-mount"| FS
+```
+
 ### Topology Support
 
 CSI drivers that are topology-aware (like EBS CSI, which is AZ-scoped) implement `NodeGetInfo` to report topology labels (`topology.ebs.csi.aws.com/zone=ap-southeast-1a`). The `external-provisioner` uses these labels — combined with the PVC's `volumeBindingMode: WaitForFirstConsumer` — to ensure a volume is provisioned in the same AZ as the pod that will consume it.
@@ -329,6 +359,28 @@ The pod is now running with its volume. Every write goes: container → publish 
 | ControllerUnpublishVolume complete | Bound | Bound | Detached |
 | PVC deleted (Delete policy) | Terminating | Released → Deleted | Deleting → Gone |
 | PVC deleted (Retain policy) | Deleted | Released | Exists (orphaned) |
+
+```mermaid
+flowchart TD
+    PVC["PVC Created\n(Pending)"]
+    PROV["CreateVolume\nexternal-provisioner\n→ Cloud API"]
+    BOUND["PVC Bound / PV Bound\nVolume exists, not attached"]
+    ATTACH["ControllerPublishVolume\nexternal-attacher\n→ ec2:AttachVolume"]
+    STAGE["NodeStageVolume\nkubelet → node plugin\nmkfs + mount to staging path"]
+    PUBLISH["NodePublishVolume\nkubelet → node plugin\nbind-mount into pod path"]
+    RUNNING["Pod Running\nContainer reads/writes volume"]
+    UNPUB["NodeUnpublishVolume\nremove pod bind-mount"]
+    UNSTAGE["NodeUnstageVolume\nunmount staging path"]
+    DETACH["ControllerUnpublishVolume\n→ ec2:DetachVolume"]
+    DELETE{"reclaimPolicy?"}
+    GONE["DeleteVolume\n→ ec2:DeleteVolume\nData gone"]
+    RETAIN["PV Released\nBacking storage retained\nManual cleanup required"]
+
+    PVC --> PROV --> BOUND --> ATTACH --> STAGE --> PUBLISH --> RUNNING
+    RUNNING -->|"pod deleted"| UNPUB --> UNSTAGE --> DETACH --> DELETE
+    DELETE -->|"Delete"| GONE
+    DELETE -->|"Retain"| RETAIN
+```
 
 ---
 

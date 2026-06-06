@@ -450,27 +450,22 @@ jobs:
 
 ## 4. GitOps End-to-End Flow
 
-```
-1. Dev pushes tag v2.0.0
-        ↓
-2. GitHub Actions opens PR: bump helmrelease-green.yaml image tag → v2.0.0
-        ↓
-3. PR merged → Flux reconciles → Green Deployment rolls out v2 pods
-        ↓
-4. Verify idle slot before touching traffic:
-   flux get helmreleases -n myapp
-   kubectl get pods -n myapp -l slot=green
-   curl http://myapp-green-test.myapp.svc/healthz
-        ↓
-5. Open PR: change service.yaml  slot: blue → slot: green
-        ↓
-6. PR reviewed + merged → Flux reconciles Service selector in <5 min
-        ↓
-7. Traffic is live on Green. Monitor error rate and p99 latency.
-        ↓
-8. After soak period (15–30 min minimum): scale down or freeze Blue slot.
-        ↓
-   Rollback at any point: revert the service.yaml PR → Flux reconciles back
+```mermaid
+flowchart TD
+    TAG["Dev pushes tag v2.0.0"]
+    PR1["GitHub Actions opens PR\nbump helmrelease-green.yaml\nimage tag → v2.0.0"]
+    MERGE1["PR merged\nFlux reconciles\nGreen Deployment rolls out v2 pods"]
+    VERIFY["Verify idle slot\nflux get helmreleases\nkubectl get pods -l slot=green\ncurl myapp-green-test/healthz"]
+    PR2["Open PR\nservice.yaml: slot: blue → slot: green"]
+    CUTOVER["PR reviewed + merged\nFlux reconciles Service selector"]
+    LIVE["Traffic live on Green\nMonitor error rate + p99 latency"]
+    SOAK["After 15–30 min soak\nScale down or freeze Blue slot"]
+    ROLLBACK["Rollback at any point\nRevert service.yaml PR\nFlux reconciles back to Blue"]
+
+    TAG --> PR1 --> MERGE1 --> VERIFY --> PR2 --> CUTOVER --> LIVE --> SOAK
+    CUTOVER -->|"issue detected"| ROLLBACK
+    LIVE -->|"issue detected"| ROLLBACK
+    ROLLBACK -->|"Blue restored"| LIVE
 ```
 
 ### Force Immediate Reconciliation

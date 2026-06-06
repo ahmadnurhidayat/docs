@@ -70,6 +70,36 @@ When evaluating whether a value belongs in the artifact or in runtime configurat
 | Log verbosity | `LOG_LEVEL=debug` | Runtime config |
 | Scaling parameters | `REPLICA_COUNT=5` | Infrastructure config |
 
+```mermaid
+flowchart TD
+    COMMIT["git commit\n(source code)"]
+    BUILD["Build ONCE\ndocker build\nArtifact: myapp:abc1234"]
+
+    subgraph DEV_ENV["Dev Environment"]
+        D_CFG["Dev Config\nAPI_URL=dev.api\nLOG_LEVEL=debug"]
+        D_SEC["Dev Secrets\n(Vault / Secrets Manager)"]
+        D_RUN["myapp:abc1234\n+ dev config injected"]
+    end
+    subgraph STG_ENV["Staging Environment"]
+        S_CFG["Staging Config\nAPI_URL=staging.api\nLOG_LEVEL=info"]
+        S_SEC["Staging Secrets"]
+        S_RUN["myapp:abc1234\n+ staging config injected"]
+    end
+    subgraph PRD_ENV["Production Environment"]
+        P_CFG["Prod Config\nAPI_URL=api.prod\nLOG_LEVEL=warn"]
+        P_SEC["Prod Secrets\n(CMK-encrypted)"]
+        P_RUN["myapp:abc1234\n+ prod config injected"]
+    end
+
+    COMMIT --> BUILD
+    BUILD -->|"same image"| D_RUN
+    BUILD -->|"same image"| S_RUN
+    BUILD -->|"same image"| P_RUN
+    D_CFG & D_SEC --> D_RUN
+    S_CFG & S_SEC --> S_RUN
+    P_CFG & P_SEC --> P_RUN
+```
+
 ---
 
 ## 3. Backend & Container Apps

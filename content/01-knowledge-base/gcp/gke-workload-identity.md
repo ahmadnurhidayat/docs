@@ -17,6 +17,26 @@ Traditional methods rely on long-lived, highly sensitive JSON key credentials mo
 | **Audit Traceability** | Difficult to isolate discrete actors sharing a single key | Fully native Cloud Audit Logs with deep resource contextual mapping |
 | **Token Validity Window** | Long-lived (valid until explicit deletion or expiration) | Short-lived tokens (automatically regenerated every 1 hour) |
 
+```mermaid
+flowchart TD
+    subgraph Old["Traditional JSON Key Model"]
+        SEC["Kubernetes Secret\n(base64 JSON key)"]
+        VOL["Volume mount\n/var/secrets/key.json"]
+        APP1["Application"]
+        SEC --> VOL --> APP1
+        APP1 -->|"static long-lived key"| GCP1["Google Cloud API"]
+    end
+
+    subgraph New["Workload Identity Model"]
+        KSA["Kubernetes Service Account\n(annotated with GSA)"]
+        META["GKE Metadata Server\n(intercepts credentials requests)"]
+        OIDC["OIDC Token\n(short-lived, 1h TTL)"]
+        APP2["Application\n(uses ADC)"]
+        KSA --> META --> OIDC --> APP2
+        APP2 -->|"short-lived token"| GCP2["Google Cloud API"]
+    end
+```
+
 ---
 
 ## 2. Prerequisites & Operational Requirements
@@ -38,8 +58,29 @@ Your deployment actor identity must possess administrative rights across both GK
 
 Execute the following sequential operations to migrate your cluster, namespaces, and workloads to Workload Identity.
 
-```
-[ Step 1: Cluster Setup ] ──► [ Step 2: GSA Provisioning ] ──► [ Step 3: Identity Union Binding ] ──► [ Step 4: Manifest Application ]
+```mermaid
+sequenceDiagram
+    participant DEV as Engineer
+    participant GKE as GKE Cluster
+    participant KSA as Kubernetes SA
+    participant META as GKE Metadata Server
+    participant STS as Google STS
+    participant GCP as Google Cloud API
+
+    DEV->>GKE: Enable workload-pool on cluster
+    DEV->>GKE: Update node pool (GKE_METADATA mode)
+    DEV->>GCP: Create GSA + grant IAM roles
+    DEV->>KSA: Create KSA + annotate with GSA email
+    DEV->>GCP: Bind workloadIdentityUser\n(KSA → GSA)
+
+    Note over GKE,GCP: Runtime — pod starts
+
+    KSA->>META: Request credentials\n(ADC / metadata endpoint)
+    META->>STS: Exchange KSA OIDC token for GSA token
+    STS-->>META: Short-lived access token (1h TTL)
+    META-->>KSA: Access token
+    KSA->>GCP: API call with token
+    GCP-->>KSA: Authorized response
 ```
 
 ### Step 1: Establish Local Shell Workspace Boundaries
@@ -248,11 +289,39 @@ if __name__ == "__main__":
 ## 5. Architectural Blueprints & Cross-Project Workloads
 
 ### 5.1 Multi-Tenant Separation Model
+
 ```
 [ namespace: production ] ──► production-ksa ──► production-gsa@prod-project
 [ namespace: staging    ] ──► staging-ksa    ──► staging-gsa@prod-project
 ```
+
 Isolate environmental bounds completely at the API layer by pairing specific namespaces with unique, target-bound GSAs to avoid broad permission pollution.
+
+```mermaid
+flowchart LR
+    subgraph Cluster["GKE Cluster (Project-A)"]
+        subgraph NS_PROD["namespace: production"]
+            KSA_P["production-ksa\nannotated → production-gsa"]
+        end
+        subgraph NS_STG["namespace: staging"]
+            KSA_S["staging-ksa\nannotated → staging-gsa"]
+        end
+    end
+
+    subgraph GCP_A["Project-A (cluster project)"]
+        GSA_P["production-gsa\n(roles: Cloud SQL, GCS)"]
+        GSA_S["staging-gsa\n(roles: read-only)"]
+    end
+
+    subgraph GCP_B["Project-B (resource project)"]
+        RES["GCS Buckets\nBigQuery Datasets\nCloud SQL"]
+    end
+
+    KSA_P -->|"workloadIdentityUser binding"| GSA_P
+    KSA_S -->|"workloadIdentityUser binding"| GSA_S
+    GSA_P -->|"IAM role on Project-B"| RES
+    GSA_S -->|"IAM role on Project-B\n(read-only)"| RES
+```
 
 ### 5.2 Isolated Cross-Project Resource Mapping Topology
 If your core GKE cluster resides within `Project-A` but must access analytical storage boundaries residing inside `Project-B`:

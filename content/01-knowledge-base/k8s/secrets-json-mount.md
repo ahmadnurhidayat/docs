@@ -17,16 +17,18 @@ Injecting raw, multiline JSON credential strings directly into an environment va
 ### 1.2 The Volume Mount Solution
 By decoupling credential strings into a dedicated Kubernetes Secret object and mounting it as an isolated, file-backed cryptographic tracking device inside a `readOnly` memory projection layer, you significantly minimize your runtime threat surface.
 
-```
-  [ Kubernetes Secret Component ]
-   └─ buckets-svc-acc-secrets (Contains key.json data)
-               │
-               ▼  (Projected safely as a File System Volume)
-  [ Pod File System Boundary ]
-   └─ /var/secrets/google/GOOGLE_APPLICATION_CREDENTIALS
-               ▲
-               │  (Environment Variable points to this exact path string)
-  [ Cloud Provider Client SDK ] ──► Automatically loads file data
+```mermaid
+flowchart TD
+    SEC["Kubernetes Secret\nbuckets-svc-acc-secrets\n(key: GOOGLE_APPLICATION_CREDENTIALS)"]
+    VOL["Pod Volume\ngcp-credentials-volume\n(secret mount)"]
+    MNT["Container Mount\n/var/secrets/google/\nreadOnly: true"]
+    ENV["Environment Variable\nGOOGLE_APPLICATION_CREDENTIALS\n= /var/secrets/google/GOOGLE_APPLICATION_CREDENTIALS"]
+    SDK["Cloud Provider SDK\n(auto-discovers via env var)"]
+
+    SEC -->|"projected as file"| VOL
+    VOL -->|"volumeMount"| MNT
+    MNT -->|"file path exposed via env"| ENV
+    ENV -->|"SDK reads file at startup"| SDK
 ```
 
 ---

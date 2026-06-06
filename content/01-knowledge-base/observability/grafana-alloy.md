@@ -10,20 +10,31 @@ This architectural blueprint covers the complete deployment of the Grafana Kuber
 
 Deploying the `k8s-monitoring` Helm chart orchestrates a multi-tier agent topology within your cluster to optimize telemetry ingestion while keeping computing overhead low.
 
-```
-                      [ Kubernetes Cluster Pods & Nodes ]
-                                       │
-       ┌───────────────────────────────┼───────────────────────────────┐
-       ▼ (Scrapes Metrics)             ▼ (Streams System Logs)         ▼ (Collects Events)
-┌──────────────────────────────┐┌──────────────────────────────┐┌──────────────────────────────┐
-│  Grafana Alloy StatefulSet   ││    Grafana Alloy DaemonSet   ││  Grafana Alloy Deployment   │
-│       "alloy-metrics"        ││         "alloy-logs"         ││      "alloy-singleton"       │
-└──────────────┬───────────────┘└──────────────┬───────────────┘└──────────────┬───────────────┘
-               │                               │                               │
-               ▼ (Prometheus Remote Write)     ▼ (Loki Push API)               ▼ (Loki Push API)
- ┌────────────────────────────┐  ┌────────────────────────────┐  ┌────────────────────────────┐
- │  Upstream Prometheus API   │  │   Upstream Grafana Loki    │  │   Upstream Grafana Loki    │
- └────────────────────────────┘  └────────────────────────────┘  └────────────────────────────┘
+```mermaid
+flowchart TD
+    subgraph Cluster["Kubernetes Cluster"]
+        Pods["Pods & Nodes"]
+
+        AM["alloy-metrics\nStatefulSet / 1 replica\nScrapes Metrics"]
+        AL["alloy-logs\nDaemonSet / per node\nStreams Logs"]
+        AS["alloy-singleton\nDeployment / 1 replica\nCollects Events"]
+
+        KSM["kube-state-metrics"]
+        NE["prometheus-node-exporter"]
+
+        Pods --> AM
+        Pods --> AL
+        Pods --> AS
+        KSM --> AM
+        NE --> AM
+    end
+
+    PROM["Prometheus\n/api/v1/write"]
+    LOKI["Grafana Loki\n/loki/api/v1/push"]
+
+    AM -->|"Prometheus Remote Write"| PROM
+    AL -->|"Loki Push API"| LOKI
+    AS -->|"Loki Push API"| LOKI
 ```
 
 ### 1.1 Injected Component Matrix
@@ -120,6 +131,29 @@ helm install grafana-k8s-monitoring grafana/k8s-monitoring \
 ## 4. Migration Guide: Modernized Ingestion Pipelines
 
 The latest major revision of the `k8s-monitoring` chart completely decouples telemetry sources from storage destinations. Destinations are now declared as a collection of reusable pools, matching Grafana Alloy's native pipeline architecture.
+
+```mermaid
+flowchart LR
+    subgraph V1["v1 Schema"]
+        V1P["externalServices\n.prometheus.host"]
+        V1L["externalServices\n.loki.host"]
+    end
+
+    subgraph V2["v2 Schema"]
+        V2D["destinations[ ]\ntype: prometheus / loki\nurl: full endpoint"]
+    end
+
+    subgraph Components["Alloy Components"]
+        AM2["alloy-metrics"]
+        AL2["alloy-logs"]
+        AS2["alloy-singleton"]
+    end
+
+    V1 -->|"helm upgrade\n--atomic --wait"| V2
+    V2D --> AM2
+    V2D --> AL2
+    V2D --> AS2
+```
 
 ### 4.1 Step 1: Analyze the Architecture Changes
 * **Unified Destination Array:** `externalServices.prometheus.host` and `externalServices.loki.host` are deprecated. They have been replaced by a clean, array-driven list format under `destinations` where you explicitly provide full API request endpoints (e.g., `/api/v1/write` or `/loki/api/v1/push`).

@@ -94,6 +94,20 @@ The relationship between SLOs and SLAs is asymmetric by design. The SLO should a
 | SLO | Engineering + Product | Internal | Error budget consumed, velocity may be restricted |
 | SLA | Business + Legal | External (customers) | Financial penalty, contract consequences, churn |
 
+```mermaid
+flowchart TD
+    SLI["SLI\nService Level Indicator\nMeasured ratio:\ngood events / total events × 100"]
+    SLO["SLO\nService Level Objective\nInternal target:\nSLI ≥ 99.9% over 28 days"]
+    SLA["SLA\nService Level Agreement\nExternal commitment:\n99.9% uptime — breach triggers credits"]
+    EB["Error Budget\n0.1% of requests\nmay fail (28-day window)"]
+    POL["Error Budget Policy\n>50% consumed → increased scrutiny\n>90% consumed → feature freeze"]
+
+    SLI --> SLO
+    SLO --> SLA
+    SLO --> EB
+    EB --> POL
+```
+
 ---
 
 ## 3. Error Budgets
@@ -113,6 +127,19 @@ The error budget has two states: remaining and exhausted. When remaining, the te
 The error budget policy is the document that specifies what the team does when the budget reaches specific thresholds. Without an explicit policy, error budget management becomes ad hoc and the concept loses its operational value. The policy must be agreed upon by the SRE team, the product team, and engineering leadership before it is needed — not negotiated during an incident.
 
 A standard error budget policy has three thresholds. When more than 50% of the budget remains with more than half the window left, the team operates normally — feature releases proceed, new experiments are allowed, and the SRE team focuses on automation and proactive reliability work. When the budget is between 25% and 50% consumed ahead of pace, the team increases scrutiny — change review cadence increases, risky deployments require additional testing. When the budget is exhausted or within 10% of exhaustion, the team implements a feature freeze — no new features or risky changes are released until reliability is restored.
+
+```mermaid
+flowchart LR
+    EB["Error Budget\n(28-day window)"]
+    N["Normal Operations\n< 50% consumed\n• Deploy freely\n• Run experiments\n• Focus on automation"]
+    S["Increased Scrutiny\n50–90% consumed\n• Extra change review\n• No risky deploys\n• Investigate causes"]
+    F["Feature Freeze\n> 90% consumed\n• No new features\n• All hands on reliability\n• Escalate to leadership"]
+
+    EB -->|"Budget healthy"| N
+    N -->|"Incidents accumulate"| S
+    S -->|"Continued degradation"| F
+    F -->|"Reliability restored"| N
+```
 
 ```python
 def calculate_error_budget(slo_target_pct: float,

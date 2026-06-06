@@ -16,6 +16,22 @@ Our target deployment establishes a resilient 3-node topology utilizing internal
 * **Secondary Node (`mongo-node-02`):** Asynchronously replicates database modifications from the primary node. Can be automatically elected to primary during a failover event.
 * **Arbiter Node (`mongo-node-03`):** Does not replicate data or service client requests. It exists purely to break ties during primary elections by providing a voting quorum, minimizing infrastructure compute costs.
 
+```mermaid
+flowchart TD
+    APP["Application / Driver"]
+
+    subgraph RS["Replica Set: rs0"]
+        P["mongo-node-01\n10.0.1.10\nPRIMARY\npriority: 2"]
+        S["mongo-node-02\n10.0.1.11\nSECONDARY\npriority: 1"]
+        A["mongo-node-03\n10.0.1.12\nARBITER\npriority: 0"]
+    end
+
+    APP -->|"Writes & Reads"| P
+    P -->|"Oplog replication"| S
+    P <-->|"Election votes"| A
+    S <-->|"Election votes"| A
+```
+
 ---
 
 ## 2. Infrastructure Layer: Network & Hostname Setup
@@ -213,5 +229,25 @@ rs.reconfig(clusterConfig);
 ## 6. Strategic Engineering Operational Guidelines
 
 1. **Enforce the Election Quorum Law:** A replica set needs a strict majority of voting members online to elect a primary node. If a 3-node set loses two members simultaneously, the remaining node drops down to `SECONDARY` read-only mode automatically to safeguard against data split-brain corruption vectors.
+
+```mermaid
+flowchart TD
+    N1["mongo-node-01\nPRIMARY"]
+    N2["mongo-node-02\nSECONDARY"]
+    N3["mongo-node-03\nARBITER"]
+
+    FAIL["mongo-node-01 fails"]
+    ELECT["Election triggered\nN2 + N3 = 2 votes\nQuorum met ✓"]
+    NEW["mongo-node-02\nNEW PRIMARY"]
+    READONLY["mongo-node-02\nSECONDARY / read-only\nNo quorum — cannot elect"]
+
+    N1 & N2 & N3 --> FAIL
+    FAIL -->|"N2 + N3 still online"| ELECT
+    ELECT --> NEW
+
+    FAIL2["mongo-node-01 + mongo-node-03 fail"]
+    N1 & N2 & N3 --> FAIL2
+    FAIL2 -->|"Only N2 online\n1 vote < majority"| READONLY
+```
 2. **Handle Keyfile Rotations Securely:** When updating or replacing an aging internal keyfile, implement a rolling update strategy across nodes. Since MongoDB accepts older, active keys during transit phases, update your secondary nodes first before bouncing your primary leader instance.
 3. **Isolate Your Arbiter Hardware Tier:** While an arbiter node has lightweight resource demands because it doesn't store active database indexes or data, ensure it is deployed on an **entirely separate host compute rack or availability zone** from your primary nodes. This separation guarantees it can accurately report a quorum if a structural network partition cuts your data centers in half.

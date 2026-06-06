@@ -29,6 +29,20 @@
 | **Cost Optimization** | Are we spending wisely? | Waste, unpredictable bills, budget overruns |
 | **Sustainability** | Are we minimizing environmental impact? | Carbon footprint, wasted energy, regulatory risk |
 
+```mermaid
+flowchart TD
+    WAF["AWS Well-Architected Framework"]
+
+    OE["Operational Excellence\nRunbooks, deployments,\nobservability, toil reduction"]
+    SEC["Security\nIAM, encryption,\nthreat detection, audit trails"]
+    REL["Reliability\nMulti-AZ, circuit breakers,\nbackup & recovery"]
+    PE["Performance Efficiency\nGraviton, caching,\nauto-scaling, right compute"]
+    CO["Cost Optimization\nSavings Plans, Spot,\nrightsizing, tagging"]
+    SUS["Sustainability\nGreen regions, utilization,\nmanaged services"]
+
+    WAF --> OE & SEC & REL & PE & CO & SUS
+```
+
 ### When to Conduct a Review
 
 - **New workload design** — before you write infrastructure code, not after.

@@ -17,6 +17,29 @@ To architect resilient systems, platform engineers must clearly differentiate be
 | **Voluntary** | Automated or User-Initiated | `kubectl drain`, automated GKE node pool upgrades, cluster autoscaler downscaling, manual pod evictions. | **Strictly Enforced.** The API server blocks eviction requests if they violate the active PDB boundary rules. |
 | **Involuntary** | Hardware or Provider-Driven | Google Cloud Spot VM preemption, physical node hardware failure, kernel panics, data center network partitions. | **Bypassed / Not Enforced.** Involuntary terminations override all scheduling logic. The node shuts down regardless of PDB compliance. |
 
+```mermaid
+flowchart TD
+    DISRUPTION["Pod Disruption"]
+
+    VOL["Voluntary\nkubectl drain\nGKE node upgrade\nCluster Autoscaler scale-down"]
+    INV["Involuntary\nSpot VM preemption\nHardware failure\nKernel panic"]
+
+    PDB_CHECK["PDB Enforcement\n(API Server checks\ndisruptionsAllowed)"]
+    BYPASS["PDB Bypassed\nNode shut down immediately\nregardless of PDB rules"]
+
+    ALLOW{"Budget\nallows?"}
+    EVICT["Pod evicted gracefully\n(terminationGracePeriodSeconds honored)"]
+    BLOCK["Eviction denied\nHTTP 429 — retry later"]
+
+    DISRUPTION --> VOL & INV
+    VOL --> PDB_CHECK
+    INV --> BYPASS
+
+    PDB_CHECK --> ALLOW
+    ALLOW -->|"Yes"| EVICT
+    ALLOW -->|"No"| BLOCK
+```
+
 ### 1.2 Is PDB Enough?
 
 **No.** A PDB functions purely as an advisory lock for the Kubernetes API control plane during scheduled maintenance window events. When a GKE Spot VM receives a preemption signal from the Google Compute Engine infrastructure layer, the underlying node is forcefully torn down. If 100% of an application's replicas are scheduled on a single Spot node pool that faces mass reclamation, the service will suffer immediate downtime despite any strict `minAvailable` or `maxUnavailable` PDB properties attached to it.
@@ -177,6 +200,38 @@ spec:
     spec:
       priorityClassName: mission-critical-tier
 
+```
+
+```mermaid
+flowchart TD
+    subgraph Cluster["GKE Cluster"]
+        subgraph OnDemand["On-Demand Node Pool (baseline)"]
+            P1["Pod replica 1\n(guaranteed)"]
+            P2["Pod replica 2\n(guaranteed)"]
+        end
+        subgraph Spot["Spot VM Node Pool (scale-out)"]
+            P3["Pod replica 3"]
+            P4["Pod replica 4"]
+            P5["Pod replica 5"]
+        end
+    end
+
+    PDB["PDB\nminAvailable: 2\n(protects voluntary evictions)"]
+    HPA["HPA\nminReplicas: 3\nmaxReplicas: 15"]
+    CA["Cluster Autoscaler\nprovisions fallback nodes\non Spot preemption storm"]
+    PRIO["PriorityClass\nmission-critical-tier\nevicts low-priority pods first"]
+    TSC["TopologySpreadConstraints\nsplits pods across\nspot/standard node pools"]
+
+    PDB --> OnDemand
+    HPA --> Cluster
+    CA --> Spot
+    PRIO --> Spot
+    TSC --> Cluster
+
+    PREEMPT["⚡ Spot VM preempted"]
+    PREEMPT -->|"P3/P4/P5 lost"| HPA
+    HPA -->|"detects missing capacity"| CA
+    CA -->|"provisions On-Demand fallback"| OnDemand
 ```
 
 ---

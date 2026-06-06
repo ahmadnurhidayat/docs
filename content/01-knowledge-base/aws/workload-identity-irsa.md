@@ -56,6 +56,32 @@ Credential issuance happens through a single STS API call: `AssumeRoleWithWebIde
 
 If all four pass, STS returns a temporary credential set — `AccessKeyId`, `SecretAccessKey`, and `SessionToken` — with a TTL matching the requested duration. These credentials are indistinguishable from any other STS-issued temporary credentials; the AWS SDK uses them transparently.
 
+```mermaid
+sequenceDiagram
+    participant KL as kubelet
+    participant POD as Pod
+    participant SDK as AWS SDK\n(in pod)
+    participant STS as AWS STS
+    participant IAM as IAM Role\nTrust Policy
+    participant AWS as AWS Service\n(S3, SSM…)
+
+    KL->>POD: Mount projected token\n(JWT, 1h TTL)\n+ env vars AWS_ROLE_ARN\n+ AWS_WEB_IDENTITY_TOKEN_FILE
+
+    POD->>SDK: s3.GetObject() / any AWS call
+    SDK->>STS: AssumeRoleWithWebIdentity\n(JWT + role ARN)
+    STS->>IAM: Validate: iss trusted?\nsig valid? exp future?\nsub matches condition?
+    alt All checks pass
+        IAM-->>STS: Trust granted
+        STS-->>SDK: Temp credentials\n(1h TTL)
+        SDK->>AWS: API call with temp credentials
+        AWS-->>SDK: Response
+    else Checks fail
+        STS-->>SDK: AccessDenied
+    end
+
+    Note over KL,POD: kubelet auto-rotates\ntoken before expiry
+```
+
 This exchange is the complete underlying mechanism. Everything that follows — the EKS OIDC provider, the service account annotation, the mutating webhook — is infrastructure that automates this exchange invisibly on behalf of the pod.
 
 ---

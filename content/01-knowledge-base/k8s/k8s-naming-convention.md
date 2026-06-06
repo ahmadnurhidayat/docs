@@ -230,6 +230,37 @@ Never drop workloads into the default Kubernetes cluster tracking workspace name
 * `staging` $\rightarrow$ Static testing workspace mirroring production environments to validate deployment integrity.
 * `prod` $\rightarrow$ Locked down, high-availability production runtime hosting real client workloads.
 
+```mermaid
+flowchart TD
+    subgraph DEV["Namespace: dev"]
+        D1["Deployments\n(feature branches)"]
+        D2["Services"]
+        D3["Ephemeral PVCs"]
+    end
+
+    subgraph STG["Namespace: staging"]
+        S1["Deployments\n(release candidates)"]
+        S2["Services"]
+        S3["PVCs (mirrored config)"]
+    end
+
+    subgraph PROD["Namespace: prod"]
+        P1["Deployments\n(immutable tags only)"]
+        P2["Services"]
+        P3["PVCs (Retain policy)"]
+        P4["NetworkPolicies\n(strict ingress/egress)"]
+    end
+
+    subgraph MONITORING["Namespace: monitoring"]
+        M1["Prometheus"]
+        M2["Grafana"]
+        M3["Alertmanager"]
+    end
+
+    DEV -->|"promote"| STG -->|"promote"| PROD
+    PROD & STG & DEV -->|"metrics / logs"| MONITORING
+```
+
 ### 4.3 Standardized Cloud Observability Architecture
 
 Every microservice container shipped to cluster nodes must include native instrumentation capabilities to support a centralized monitoring stack:
