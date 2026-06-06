@@ -19,7 +19,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-
   # ─── JOB 1: TruffleHog — Verified Credential Scan ──────────────────
   trufflehog:
     name: TruffleHog (Credential Verification)
@@ -30,7 +29,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
         with:
-          # Fetch full history so TruffleHog can inspect all commits in the branch
           fetch-depth: 0
 
       - name: TruffleHog OSS Scan
@@ -40,9 +38,19 @@ jobs:
           base: ${{ github.event.repository.default_branch }}
           head: HEAD
           extra_args: --only-verified --json
-        # continue-on-error lets the report and comment steps run even on findings;
-        # the "Enforce" step below re-fails the job afterward.
         continue-on-error: true
+
+      - name: Generate Job Summary Log
+        if: always()
+        run: |
+          echo "### 🛡️ Security Scan Summary" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.scan.outcome }}" = "failure" ]; then
+            echo "#### 🚨 TruffleHog Status: FAILED" >> $GITHUB_STEP_SUMMARY
+            echo "> **CRITICAL ERROR:** Verified unencrypted credentials discovered in commit delta logs. Inspect the \`trufflehog-report\` artifact file asset or local logs immediately to identify the compromised targets." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "#### ✅ TruffleHog Status: PASSED" >> $GITHUB_STEP_SUMMARY
+            echo "No active or verified credentials found in the commit history." >> $GITHUB_STEP_SUMMARY
+          fi
 
       - name: Upload scan report
         if: always()
@@ -59,8 +67,7 @@ jobs:
         with:
           script: |
             const outcome = '${{ steps.scan.outcome }}';
-            // Unique marker — must be non-empty so find() works correctly
-            const marker = '<!-- trufflehog-scan-result -->';
+            const marker = '';
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -90,7 +97,6 @@ jobs:
               });
             }
 
-      # Re-fail after reporting so the PR is still blocked
       - name: Enforce scan result
         if: steps.scan.outcome == 'failure'
         run: |
