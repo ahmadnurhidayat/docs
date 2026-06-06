@@ -1,0 +1,243 @@
+name: Security Scanning Guard
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+  security-events: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+
+  # ─── JOB 1: TruffleHog — Verified Credential Scan ──────────────────
+  trufflehog:
+    name: TruffleHog (Credential Verification)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          # Fetch full history so TruffleHog can inspect all commits in the branch
+          fetch-depth: 0
+
+      - name: TruffleHog OSS Scan
+        id: scan
+        uses: trufflesecurity/trufflehog@v3.82.0
+        with:
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+          extra_args: --only-verified --json
+        # continue-on-error lets the report and comment steps run even on findings;
+        # the "Enforce" step below re-fails the job afterward.
+        continue-on-error: true
+
+      - name: Upload scan report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trufflehog-report-${{ github.run_id }}
+          path: trufflehog-report.json
+          retention-days: 14
+          if-no-files-found: ignore
+
+      - name: Comment scan result on PR
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const outcome = '${{ steps.scan.outcome }}';
+            // Unique marker — must be non-empty so find() works correctly
+            const marker = '<!-- trufflehog-scan-result -->';
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find(c => c.body.includes(marker));
+            const passed = outcome !== 'failure';
+            const body = [
+              marker,
+              `## ${passed ? '✅' : '🚨'} TruffleHog — ${passed ? 'No Verified Secrets' : 'Secrets Detected'}`,
+              '',
+              passed
+                ? 'No verified credentials found in commit history.'
+                : '> **Action Required:** Verified credentials detected. Review the `trufflehog-report` artifact and rotate all exposed keys immediately.',
+              '',
+              `**Run:** [#${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})`,
+            ].join('\n');
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                comment_id: existing.id, body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: context.issue.number, body,
+              });
+            }
+
+      # Re-fail after reporting so the PR is still blocked
+      - name: Enforce scan result
+        if: steps.scan.outcome == 'failure'
+        run: |
+          echo "::error::TruffleHog detected active credentials. Check the artifact report."
+          exit 1
+
+  # ─── JOB 2: Gitleaks — Pattern-Based Secret Scan ────────────────────
+  gitleaks:
+    name: Gitleaks (Pattern Secret Scan)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Gitleaks Scan
+        id: gitleaks_scan
+        # Pinned to a specific tag — @v2 is a mutable floating reference
+        uses: gitleaks/gitleaks-action@v2.3.9
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
+      - name: Comment scan result on PR
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const outcome = '${{ steps.gitleaks_scan.outcome }}';
+            const marker = '<!-- gitleaks-scan-result -->';
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find(c => c.body.includes(marker));
+            const passed = outcome !== 'failure';
+            const body = [
+              marker,
+              `## ${passed ? '✅' : '🚨'} Gitleaks — ${passed ? 'No Leaks Found' : 'Secrets Detected'}`,
+              '',
+              passed
+                ? 'No hardcoded secret patterns found in the codebase.'
+                : '> **Action Required:** Suspected secret patterns detected. Review the Actions log for affected file locations.',
+              '',
+              `**Run:** [#${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})`,
+            ].join('\n');
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                comment_id: existing.id, body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: context.issue.number, body,
+              });
+            }
+
+      - name: Enforce scan result
+        if: steps.gitleaks_scan.outcome == 'failure'
+        run: |
+          echo "::error::Gitleaks detected secret patterns. Review the Actions log."
+          exit 1
+
+  # ─── JOB 3: Trivy — SCA, Misconfig & Vulnerability Scan ─────────────
+  trivy:
+    name: Trivy (SCA & Misconfig)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup Trivy CLI
+        uses: aquasecurity/setup-trivy@v0.3.1
+
+      - name: Trivy Filesystem Scan
+        id: trivy_scan
+        run: |
+          trivy fs . \
+            --ignore-unfixed \
+            --format sarif \
+            --output trivy-results.sarif \
+            --severity CRITICAL,HIGH
+        continue-on-error: true
+
+      # Upload to GitHub Security tab — visible under Security > Code scanning alerts
+      - name: Upload SARIF to Security tab
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
+          category: trivy-fs-scanner
+
+      # Also keep a raw artifact for offline review
+      - name: Upload SARIF artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-sarif-${{ github.run_id }}
+          path: trivy-results.sarif
+          retention-days: 14
+          if-no-files-found: ignore
+
+      - name: Comment scan result on PR
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const outcome = '${{ steps.trivy_scan.outcome }}';
+            const marker = '<!-- trivy-scan-result -->';
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find(c => c.body.includes(marker));
+            const passed = outcome !== 'failure';
+            const body = [
+              marker,
+              `## ${passed ? '✅' : '🚨'} Trivy — ${passed ? 'No Critical/High Findings' : 'Vulnerabilities Detected'}`,
+              '',
+              passed
+                ? 'No CRITICAL or HIGH CVEs or misconfigurations found.'
+                : '> **Action Required:** CRITICAL or HIGH findings detected. Review the [Security tab](${{ github.server_url }}/${{ github.repository }}/security/code-scanning) or download the `trivy-sarif` artifact.',
+              '',
+              `**Run:** [#${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})`,
+            ].join('\n');
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                comment_id: existing.id, body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: context.issue.number, body,
+              });
+            }
+
+      - name: Enforce scan result
+        if: steps.trivy_scan.outcome == 'failure'
+        run: |
+          echo "::error::Trivy found CRITICAL/HIGH CVEs or misconfigurations. See Security tab for details."
+          exit 1

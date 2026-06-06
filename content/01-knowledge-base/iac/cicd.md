@@ -428,7 +428,7 @@ jobs:
     outputs:
       stacks: ${{ steps.changed.outputs.stacks }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -450,7 +450,7 @@ jobs:
         stack: ${{ fromJson(needs.detect-changes.outputs.stacks) }}
       fail-fast: false   # Plan all stacks even if one fails
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
@@ -517,7 +517,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: staging      # GitHub Environment: no approval required
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Configure AWS credentials (OIDC — staging)
         uses: aws-actions/configure-aws-credentials@v4
@@ -537,7 +537,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: production   # GitHub Environment: requires manual approval
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Configure AWS credentials (OIDC — prod)
         uses: aws-actions/configure-aws-credentials@v4
@@ -784,7 +784,7 @@ jobs:
         environment: [staging, prod]
       fail-fast: false
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -872,7 +872,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
