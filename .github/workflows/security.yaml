@@ -33,24 +33,12 @@ jobs:
 
       - name: TruffleHog OSS Scan
         id: scan
-        uses: trufflesecurity/trufflehog@v3.82.0
+        uses: trufflesecurity/trufflehog@v3.95.5
         with:
           base: ${{ github.event.repository.default_branch }}
           head: HEAD
           extra_args: --only-verified --json
         continue-on-error: true
-
-      - name: Generate Job Summary Log
-        if: always()
-        run: |
-          echo "### 🛡️ Security Scan Summary" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ steps.scan.outcome }}" = "failure" ]; then
-            echo "#### 🚨 TruffleHog Status: FAILED" >> $GITHUB_STEP_SUMMARY
-            echo "> **CRITICAL ERROR:** Verified unencrypted credentials discovered in commit delta logs. Inspect the \`trufflehog-report\` artifact file asset or local logs immediately to identify the compromised targets." >> $GITHUB_STEP_SUMMARY
-          else
-            echo "#### ✅ TruffleHog Status: PASSED" >> $GITHUB_STEP_SUMMARY
-            echo "No active or verified credentials found in the commit history." >> $GITHUB_STEP_SUMMARY
-          fi
 
       - name: Upload scan report
         if: always()
@@ -58,7 +46,7 @@ jobs:
         with:
           name: trufflehog-report-${{ github.run_id }}
           path: trufflehog-report.json
-          retention-days: 14
+          retention-days: 3
           if-no-files-found: ignore
 
       - name: Comment scan result on PR
