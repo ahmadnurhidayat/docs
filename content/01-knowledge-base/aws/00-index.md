@@ -12,5 +12,6 @@ This directory contains deep-dive, production-grade technical logs and design re
 | **06** | [Workload Identity - IRSA Deep Dive](workload-identity-irsa.md) | Comprehensive guide to AWS IAM Roles for Service Accounts (IRSA), covering production deployment patterns, security best practices, CI/CD pipelines for managing OIDC providers, and failure mode runbooks. |
 | **07** | [Centralized VPC Endpoints Design](centralized-vpc-endpoints.md) | High-performance, cost-optimized design patterns for VPC endpoint architectures, covering interface and gateway endpoint strategies, multi-account PrivateLink sharing, and routing designs that minimize cross-AZ data transfer costs. |
 | **08** | [Centralized Egress using Transit Gateway & NAT Gateway - The Runbooks](centralized-egress-tgw-nat-runbooks.md) | Production-grade operational runbooks for the Transit Gateway & NAT Gateway egress architecture, covering traffic blackhole scenarios, NAT Gateway scaling incidents, Route 53 DNS failure recovery, and emergency egress bypass procedures. |
+| **09** | [Karpenter — Automatic Node Provisioning on EKS](karpenter-eks.md) | Comprehensive guide to Karpenter v1, covering group-less auto scaling, NodePool and EC2NodeClass CRDs, disruption and consolidation, multi-NodePool patterns (spot/on-demand/GPU), migration from Cluster Autoscaler, and production best practices. |
 
 
