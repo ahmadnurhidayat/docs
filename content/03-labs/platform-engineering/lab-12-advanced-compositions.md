@@ -66,6 +66,13 @@ apiVersion: apiextensions.crossplane.io/v1
 kind: CompositeResourceDefinition
 metadata:
   name: xappstacks.platform.example.com
+  labels:
+    app.kubernetes.io/name: app-stack
+    app.kubernetes.io/instance: xappstacks
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/component: xrd
+    app.kubernetes.io/part-of: crossplane
+    app.kubernetes.io/managed-by: kubectl
 spec:
   group: platform.example.com
   names:
@@ -139,6 +146,12 @@ metadata:
   labels:
     crossplane.io/xrd: xappstacks.platform.example.com
     tier: standard
+    app.kubernetes.io/name: appstack-standard
+    app.kubernetes.io/instance: appstack-standard
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/component: composition
+    app.kubernetes.io/part-of: crossplane
+    app.kubernetes.io/managed-by: kubectl
 spec:
   compositeTypeRef:
     apiVersion: platform.example.com/v1alpha1
@@ -399,6 +412,13 @@ kind: AppStackClaim
 metadata:
   name: demo-free
   namespace: platform-dev
+  labels:
+    app.kubernetes.io/name: demo-free
+    app.kubernetes.io/instance: demo-free-dev
+    app.kubernetes.io/version: "0.2.3"
+    app.kubernetes.io/component: service
+    app.kubernetes.io/part-of: crossplane
+    app.kubernetes.io/managed-by: kubectl
 spec:
   parameters:
     appName: mysite
@@ -418,6 +438,13 @@ kind: AppStackClaim
 metadata:
   name: demo-premium
   namespace: platform-dev
+  labels:
+    app.kubernetes.io/name: demo-premium
+    app.kubernetes.io/instance: demo-premium-dev
+    app.kubernetes.io/version: "0.2.3"
+    app.kubernetes.io/component: service
+    app.kubernetes.io/part-of: crossplane
+    app.kubernetes.io/managed-by: kubectl
 spec:
   parameters:
     appName: api
@@ -457,6 +484,12 @@ metadata:
   name: platform-defaults
   labels:
     platform: shared
+    app.kubernetes.io/name: platform-defaults
+    app.kubernetes.io/instance: platform-defaults
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/component: environment-config
+    app.kubernetes.io/part-of: crossplane
+    app.kubernetes.io/managed-by: kubectl
 data:
   defaultRegion: us-east-1
   clusterName: platform-lab
@@ -483,6 +516,12 @@ metadata:
   name: env-${ENV}
   labels:
     environment: ${ENV}
+    app.kubernetes.io/name: env-config
+    app.kubernetes.io/instance: env-${ENV}
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/component: environment-config
+    app.kubernetes.io/part-of: crossplane
+    app.kubernetes.io/managed-by: kubectl
 data:
   logLevel: ${LOG_LEVEL}
   monitoringEnabled: "${MONITORING}"
@@ -508,6 +547,12 @@ metadata:
   labels:
     crossplane.io/xrd: xappstacks.platform.example.com
     tier: minimal
+    app.kubernetes.io/name: appstack-minimal
+    app.kubernetes.io/instance: appstack-minimal
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/component: composition
+    app.kubernetes.io/part-of: crossplane
+    app.kubernetes.io/managed-by: kubectl
 spec:
   compositeTypeRef:
     apiVersion: platform.example.com/v1alpha1
@@ -589,6 +634,13 @@ kind: AppStackClaim
 metadata:
   name: quick-test
   namespace: platform-dev
+  labels:
+    app.kubernetes.io/name: quick-test
+    app.kubernetes.io/instance: quick-test-dev
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/component: service
+    app.kubernetes.io/part-of: crossplane
+    app.kubernetes.io/managed-by: kubectl
 spec:
   parameters:
     appName: quicktest

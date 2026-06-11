@@ -43,6 +43,13 @@ apiVersion: apiextensions.crossplane.io/v1
 kind: CompositeResourceDefinition
 metadata:
   name: xdatabases.platform.example.com
+  labels:
+    app.kubernetes.io/name: xdatabase
+    app.kubernetes.io/instance: xdatabases
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: api-definition
+    app.kubernetes.io/part-of: platform-database
+    app.kubernetes.io/managed-by: argocd
 spec:
   group: platform.example.com
   names:
@@ -90,6 +97,12 @@ metadata:
   name: database-composition
   labels:
     crossplane.io/xrd: xdatabases.platform.example.com
+    app.kubernetes.io/name: database-composition
+    app.kubernetes.io/instance: database-composition
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: api-implementation
+    app.kubernetes.io/part-of: platform-database
+    app.kubernetes.io/managed-by: argocd
 spec:
   compositeTypeRef:
     apiVersion: platform.example.com/v1alpha1
@@ -222,6 +235,12 @@ metadata:
   labels:
     team: backend-team
     provisioned-via: argocd-gitops
+    app.kubernetes.io/name: order-db
+    app.kubernetes.io/instance: order-db
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: database
+    app.kubernetes.io/part-of: ecommerce-platform
+    app.kubernetes.io/managed-by: argocd
 spec:
   parameters:
     size: small
@@ -249,6 +268,13 @@ kind: Application
 metadata:
   name: crossplane-platform-config
   namespace: argocd
+  labels:
+    app.kubernetes.io/name: crossplane-platform-config
+    app.kubernetes.io/instance: crossplane-platform-config
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: gitops
+    app.kubernetes.io/part-of: platform-infrastructure
+    app.kubernetes.io/managed-by: argocd
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
@@ -311,6 +337,13 @@ kind: ConfigMap
 metadata:
   name: argocd-cm
   namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-cm
+    app.kubernetes.io/instance: argocd-cm
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: configuration
+    app.kubernetes.io/part-of: platform-infrastructure
+    app.kubernetes.io/managed-by: kubectl
 data:
   resource.customizations.health.kubernetes.crossplane.io_Object: |
     hs = {}
@@ -396,6 +429,12 @@ metadata:
   labels:
     team: backend-team
     provisioned-via: argocd-gitops
+    app.kubernetes.io/name: payment-db
+    app.kubernetes.io/instance: payment-db
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: database
+    app.kubernetes.io/part-of: ecommerce-platform
+    app.kubernetes.io/managed-by: argocd
 spec:
   parameters:
     size: medium

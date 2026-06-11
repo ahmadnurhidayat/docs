@@ -49,6 +49,13 @@ kind: Service
 metadata:
   name: myapp
   namespace: myapp
+  labels:
+    app.kubernetes.io/name: myapp
+    app.kubernetes.io/instance: myapp-production
+    app.kubernetes.io/version: v1
+    app.kubernetes.io/component: service
+    app.kubernetes.io/part-of: myapp
+    app.kubernetes.io/managed-by: kubectl
 spec:
   selector:
     app: myapp
@@ -67,6 +74,13 @@ kind: Deployment
 metadata:
   name: myapp-blue
   namespace: myapp
+  labels:
+    app.kubernetes.io/name: myapp
+    app.kubernetes.io/instance: myapp-blue
+    app.kubernetes.io/version: v1
+    app.kubernetes.io/component: blue-slot
+    app.kubernetes.io/part-of: myapp
+    app.kubernetes.io/managed-by: kubectl
 spec:
   replicas: 3
   selector:
@@ -107,6 +121,13 @@ kind: Deployment
 metadata:
   name: myapp-green
   namespace: myapp
+  labels:
+    app.kubernetes.io/name: myapp
+    app.kubernetes.io/instance: myapp-green
+    app.kubernetes.io/version: v2
+    app.kubernetes.io/component: green-slot
+    app.kubernetes.io/part-of: myapp
+    app.kubernetes.io/managed-by: kubectl
 spec:
   replicas: 3
   selector:
@@ -149,6 +170,13 @@ kind: Service
 metadata:
   name: myapp-green-test
   namespace: myapp
+  labels:
+    app.kubernetes.io/name: myapp
+    app.kubernetes.io/instance: myapp-green-test
+    app.kubernetes.io/version: v2
+    app.kubernetes.io/component: smoke-test-service
+    app.kubernetes.io/part-of: myapp
+    app.kubernetes.io/managed-by: kubectl
 spec:
   selector:
     app: myapp
@@ -169,6 +197,13 @@ kind: PodDisruptionBudget
 metadata:
   name: myapp-blue-pdb
   namespace: myapp
+  labels:
+    app.kubernetes.io/name: myapp
+    app.kubernetes.io/instance: myapp-blue-pdb
+    app.kubernetes.io/version: v1
+    app.kubernetes.io/component: pdb
+    app.kubernetes.io/part-of: myapp
+    app.kubernetes.io/managed-by: kubectl
 spec:
   minAvailable: 2
   selector:
@@ -281,6 +316,12 @@ kind: HelmRepository
 metadata:
   name: myapp-charts
   namespace: flux-system
+  labels:
+    app.kubernetes.io/name: myapp-charts
+    app.kubernetes.io/instance: myapp-charts
+    app.kubernetes.io/component: helm-repository
+    app.kubernetes.io/part-of: myapp
+    app.kubernetes.io/managed-by: Helm
 spec:
   interval: 5m
   url: https://charts.myrepo.io
@@ -294,6 +335,13 @@ kind: HelmRelease
 metadata:
   name: myapp-blue
   namespace: myapp
+  labels:
+    app.kubernetes.io/name: myapp
+    app.kubernetes.io/instance: myapp-blue
+    app.kubernetes.io/version: v1.4.2
+    app.kubernetes.io/component: blue-slot
+    app.kubernetes.io/part-of: myapp
+    app.kubernetes.io/managed-by: Helm
 spec:
   interval: 5m
   chart:
@@ -324,6 +372,13 @@ kind: HelmRelease
 metadata:
   name: myapp-green
   namespace: myapp
+  labels:
+    app.kubernetes.io/name: myapp
+    app.kubernetes.io/instance: myapp-green
+    app.kubernetes.io/version: v2.0.0
+    app.kubernetes.io/component: green-slot
+    app.kubernetes.io/part-of: myapp
+    app.kubernetes.io/managed-by: Helm
 spec:
   interval: 5m
   chart:
@@ -354,6 +409,12 @@ kind: Service
 metadata:
   name: myapp
   namespace: myapp
+  labels:
+    app.kubernetes.io/name: myapp
+    app.kubernetes.io/instance: myapp
+    app.kubernetes.io/component: service
+    app.kubernetes.io/part-of: myapp
+    app.kubernetes.io/managed-by: Helm
 spec:
   selector:
     app: myapp
@@ -371,6 +432,12 @@ kind: Kustomization
 metadata:
   name: myapp
   namespace: flux-system
+  labels:
+    app.kubernetes.io/name: myapp
+    app.kubernetes.io/instance: myapp
+    app.kubernetes.io/component: kustomization
+    app.kubernetes.io/part-of: myapp
+    app.kubernetes.io/managed-by: Helm
 spec:
   interval: 5m
   path: ./infra/apps/myapp

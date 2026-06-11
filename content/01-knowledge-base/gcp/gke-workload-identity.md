@@ -200,6 +200,13 @@ kind: ServiceAccount
 metadata:
   name: my-app-ksa
   namespace: monitoring
+  labels:
+    app.kubernetes.io/name: my-app
+    app.kubernetes.io/instance: my-app-gke
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: identity
+    app.kubernetes.io/part-of: my-app
+    app.kubernetes.io/managed-by: kubectl
   annotations:
     iam.gke.io/gcp-service-account: my-app-gsa@your-project-id.iam.gserviceaccount.com
 ```
@@ -213,15 +220,28 @@ kind: Deployment
 metadata:
   name: my-app
   namespace: monitoring
+  labels:
+    app.kubernetes.io/name: my-app
+    app.kubernetes.io/instance: my-app-gke
+    app.kubernetes.io/version: latest
+    app.kubernetes.io/component: application
+    app.kubernetes.io/part-of: my-app
+    app.kubernetes.io/managed-by: kubectl
 spec:
   replicas: 3
   selector:
     matchLabels:
-      app: my-app
+      app.kubernetes.io/name: my-app
+      app.kubernetes.io/instance: my-app-gke
   template:
     metadata:
       labels:
-        app: my-app
+        app.kubernetes.io/name: my-app
+        app.kubernetes.io/instance: my-app-gke
+        app.kubernetes.io/version: latest
+        app.kubernetes.io/component: application
+        app.kubernetes.io/part-of: my-app
+        app.kubernetes.io/managed-by: kubectl
     spec:
       serviceAccountName: my-app-ksa # Direct linkage to the annotated KSA
       containers:

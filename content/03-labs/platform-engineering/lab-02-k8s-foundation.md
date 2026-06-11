@@ -162,7 +162,12 @@ metadata:
   namespace: platform-dev
   labels:
     app: hello-platform
-    managed-by: manual
+    app.kubernetes.io/name: hello-platform
+    app.kubernetes.io/instance: hello-platform-dev
+    app.kubernetes.io/version: "0.2.3"
+    app.kubernetes.io/component: application
+    app.kubernetes.io/part-of: lab-02-foundation
+    app.kubernetes.io/managed-by: kubectl
 spec:
   replicas: 3
   selector:
@@ -235,8 +240,12 @@ metadata:
   namespace: platform-dev
   labels:
     app: hello-platform
+    app.kubernetes.io/name: hello-platform-svc
+    app.kubernetes.io/instance: hello-platform-dev
+    app.kubernetes.io/component: service
+    app.kubernetes.io/part-of: lab-02-foundation
+    app.kubernetes.io/managed-by: kubectl
 spec:
-  type: ClusterIP
   selector:
     app: hello-platform
   ports:
@@ -330,6 +339,13 @@ kind: Deployment
 metadata:
   name: configmap-demo
   namespace: platform-dev
+  labels:
+    app.kubernetes.io/name: configmap-demo
+    app.kubernetes.io/instance: configmap-demo-dev
+    app.kubernetes.io/version: "1.36"
+    app.kubernetes.io/component: demo
+    app.kubernetes.io/part-of: lab-02-foundation
+    app.kubernetes.io/managed-by: kubectl
 spec:
   replicas: 1
   selector:
@@ -488,6 +504,12 @@ kind: ResourceQuota
 metadata:
   name: dev-quota
   namespace: platform-dev
+  labels:
+    app.kubernetes.io/name: dev-quota
+    app.kubernetes.io/instance: platform-dev
+    app.kubernetes.io/component: governance
+    app.kubernetes.io/part-of: lab-02-foundation
+    app.kubernetes.io/managed-by: kubectl
 spec:
   hard:
     requests.cpu: "2"
@@ -505,6 +527,12 @@ kind: LimitRange
 metadata:
   name: dev-limits
   namespace: platform-dev
+  labels:
+    app.kubernetes.io/name: dev-limits
+    app.kubernetes.io/instance: platform-dev
+    app.kubernetes.io/component: governance
+    app.kubernetes.io/part-of: lab-02-foundation
+    app.kubernetes.io/managed-by: kubectl
 spec:
   limits:
   - default:
@@ -548,6 +576,12 @@ kind: Role
 metadata:
   name: developer-role
   namespace: platform-dev
+  labels:
+    app.kubernetes.io/name: developer-role
+    app.kubernetes.io/instance: platform-dev
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/part-of: lab-02-foundation
+    app.kubernetes.io/managed-by: kubectl
 rules:
 - apiGroups: [""]
   resources: ["pods", "services", "configmaps"]
@@ -564,6 +598,12 @@ kind: RoleBinding
 metadata:
   name: developer-binding
   namespace: platform-dev
+  labels:
+    app.kubernetes.io/name: developer-binding
+    app.kubernetes.io/instance: platform-dev
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/part-of: lab-02-foundation
+    app.kubernetes.io/managed-by: kubectl
 subjects:
 - kind: ServiceAccount
   name: developer
@@ -603,7 +643,11 @@ metadata:
   name: sample-app
   labels:
     app: sample-app
-    managed-by: platform-team
+    app.kubernetes.io/name: sample-app
+    app.kubernetes.io/instance: sample-app-dev
+    app.kubernetes.io/component: namespace
+    app.kubernetes.io/part-of: lab-02-foundation
+    app.kubernetes.io/managed-by: kubectl
 EOF
 
 cat <<'EOF' > ~/platform-manifests/base/deployment.yaml
@@ -614,6 +658,12 @@ metadata:
   namespace: sample-app
   labels:
     app: sample-app
+    app.kubernetes.io/name: sample-app
+    app.kubernetes.io/instance: sample-app-dev
+    app.kubernetes.io/version: "1.25-alpine"
+    app.kubernetes.io/component: application
+    app.kubernetes.io/part-of: lab-02-foundation
+    app.kubernetes.io/managed-by: kubectl
 spec:
   replicas: 2
   selector:
@@ -644,6 +694,12 @@ kind: Service
 metadata:
   name: sample-app
   namespace: sample-app
+  labels:
+    app.kubernetes.io/name: sample-app-svc
+    app.kubernetes.io/instance: sample-app-dev
+    app.kubernetes.io/component: service
+    app.kubernetes.io/part-of: lab-02-foundation
+    app.kubernetes.io/managed-by: kubectl
 spec:
   selector:
     app: sample-app

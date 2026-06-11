@@ -321,6 +321,12 @@ kind: PodDisruptionBudget
 metadata:
   name: payments-api-pdb
   namespace: payments
+  labels:
+    app.kubernetes.io/name: payments-api
+    app.kubernetes.io/instance: payments-api-pdb
+    app.kubernetes.io/component: availability-policy
+    app.kubernetes.io/part-of: payments
+    app.kubernetes.io/managed-by: kubectl
 spec:
   maxUnavailable: 1
   selector:

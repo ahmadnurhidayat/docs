@@ -75,6 +75,13 @@ apiVersion: apiextensions.crossplane.io/v1
 kind: CompositeResourceDefinition
 metadata:
   name: xplatformapps.platform.example.com
+  labels:
+    app.kubernetes.io/name: platform-app
+    app.kubernetes.io/instance: xplatformapps
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/component: xrd
+    app.kubernetes.io/part-of: crossplane
+    app.kubernetes.io/managed-by: kubectl
 spec:
   group: platform.example.com
   names:
@@ -138,6 +145,12 @@ metadata:
   name: platform-app-full
   labels:
     crossplane.io/xrd: xplatformapps.platform.example.com
+    app.kubernetes.io/name: platform-app-full
+    app.kubernetes.io/instance: platform-app-full
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/component: composition
+    app.kubernetes.io/part-of: crossplane
+    app.kubernetes.io/managed-by: kubectl
 spec:
   compositeTypeRef:
     apiVersion: platform.example.com/v1alpha1
@@ -530,6 +543,11 @@ metadata:
   name: payment-service
   namespace: platform-dev
   labels:
+    app.kubernetes.io/name: payment-service
+    app.kubernetes.io/instance: payment-service-dev
+    app.kubernetes.io/version: "0.2.3"
+    app.kubernetes.io/component: service
+    app.kubernetes.io/part-of: ecommerce-platform
     app.kubernetes.io/managed-by: backstage
     team: backend-team
   annotations:
@@ -598,6 +616,11 @@ metadata:
   name: inventory-service
   namespace: platform-staging
   labels:
+    app.kubernetes.io/name: inventory-service
+    app.kubernetes.io/instance: inventory-service-staging
+    app.kubernetes.io/version: "0.2.3"
+    app.kubernetes.io/component: service
+    app.kubernetes.io/part-of: ecommerce-platform
     app.kubernetes.io/managed-by: backstage
     team: backend-team
 spec:

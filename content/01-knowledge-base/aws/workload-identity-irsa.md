@@ -122,6 +122,13 @@ kind: ServiceAccount
 metadata:
   name: payments-api
   namespace: payments
+  labels:
+    app.kubernetes.io/name: payments-api
+    app.kubernetes.io/instance: payments-api-eks
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: identity
+    app.kubernetes.io/part-of: payments
+    app.kubernetes.io/managed-by: kubectl
   annotations:
     eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/payments-api-role
 ```

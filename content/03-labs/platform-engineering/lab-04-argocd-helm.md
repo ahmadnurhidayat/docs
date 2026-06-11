@@ -68,6 +68,12 @@ kind: Application
 metadata:
   name: nginx-helm
   namespace: argocd
+  labels:
+    app.kubernetes.io/name: nginx-helm
+    app.kubernetes.io/instance: nginx-helm-argocd
+    app.kubernetes.io/component: application
+    app.kubernetes.io/part-of: lab-04-helm-kustomize
+    app.kubernetes.io/managed-by: kubectl
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
@@ -154,6 +160,12 @@ kind: Application
 metadata:
   name: helm-guestbook-git
   namespace: argocd
+  labels:
+    app.kubernetes.io/name: helm-guestbook-git
+    app.kubernetes.io/instance: helm-guestbook-git-argocd
+    app.kubernetes.io/component: application
+    app.kubernetes.io/part-of: lab-04-helm-kustomize
+    app.kubernetes.io/managed-by: kubectl
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
@@ -201,6 +213,12 @@ metadata:
   name: platform-app
   labels:
     app: platform-app
+    app.kubernetes.io/name: platform-app
+    app.kubernetes.io/instance: platform-app-base
+    app.kubernetes.io/version: "0.2.3"
+    app.kubernetes.io/component: application
+    app.kubernetes.io/part-of: lab-04-helm-kustomize
+    app.kubernetes.io/managed-by: Kustomize
 spec:
   replicas: 1
   selector:
@@ -234,6 +252,12 @@ apiVersion: v1
 kind: Service
 metadata:
   name: platform-app
+  labels:
+    app.kubernetes.io/name: platform-app-svc
+    app.kubernetes.io/instance: platform-app-base
+    app.kubernetes.io/component: service
+    app.kubernetes.io/part-of: lab-04-helm-kustomize
+    app.kubernetes.io/managed-by: Kustomize
 spec:
   selector:
     app: platform-app
@@ -410,6 +434,12 @@ kind: Application
 metadata:
   name: kustomize-guestbook
   namespace: argocd
+  labels:
+    app.kubernetes.io/name: kustomize-guestbook
+    app.kubernetes.io/instance: kustomize-guestbook-argocd
+    app.kubernetes.io/component: application
+    app.kubernetes.io/part-of: lab-04-helm-kustomize
+    app.kubernetes.io/managed-by: kubectl
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
@@ -474,6 +504,12 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: sync-waves-demo
+  labels:
+    app.kubernetes.io/name: sync-waves-demo
+    app.kubernetes.io/instance: sync-waves-demo
+    app.kubernetes.io/component: namespace
+    app.kubernetes.io/part-of: lab-04-helm-kustomize
+    app.kubernetes.io/managed-by: kubectl
   annotations:
     argocd.argoproj.io/sync-wave: "-1"
 EOF
@@ -484,6 +520,12 @@ kind: ConfigMap
 metadata:
   name: app-config
   namespace: sync-waves-demo
+  labels:
+    app.kubernetes.io/name: app-config
+    app.kubernetes.io/instance: sync-waves-demo
+    app.kubernetes.io/component: configuration
+    app.kubernetes.io/part-of: lab-04-helm-kustomize
+    app.kubernetes.io/managed-by: kubectl
   annotations:
     argocd.argoproj.io/sync-wave: "0"
 data:
@@ -497,6 +539,12 @@ kind: Secret
 metadata:
   name: app-secrets
   namespace: sync-waves-demo
+  labels:
+    app.kubernetes.io/name: app-secrets
+    app.kubernetes.io/instance: sync-waves-demo
+    app.kubernetes.io/component: configuration
+    app.kubernetes.io/part-of: lab-04-helm-kustomize
+    app.kubernetes.io/managed-by: kubectl
   annotations:
     argocd.argoproj.io/sync-wave: "0"
 type: Opaque
@@ -510,6 +558,13 @@ kind: Deployment
 metadata:
   name: database
   namespace: sync-waves-demo
+  labels:
+    app.kubernetes.io/name: database
+    app.kubernetes.io/instance: sync-waves-demo
+    app.kubernetes.io/version: "15-alpine"
+    app.kubernetes.io/component: database
+    app.kubernetes.io/part-of: lab-04-helm-kustomize
+    app.kubernetes.io/managed-by: kubectl
   annotations:
     argocd.argoproj.io/sync-wave: "1"
 spec:
@@ -546,6 +601,12 @@ kind: Service
 metadata:
   name: db
   namespace: sync-waves-demo
+  labels:
+    app.kubernetes.io/name: db-svc
+    app.kubernetes.io/instance: sync-waves-demo
+    app.kubernetes.io/component: database
+    app.kubernetes.io/part-of: lab-04-helm-kustomize
+    app.kubernetes.io/managed-by: kubectl
   annotations:
     argocd.argoproj.io/sync-wave: "1"
 spec:
@@ -562,6 +623,13 @@ kind: Deployment
 metadata:
   name: web-app
   namespace: sync-waves-demo
+  labels:
+    app.kubernetes.io/name: web-app
+    app.kubernetes.io/instance: sync-waves-demo
+    app.kubernetes.io/version: "0.2.3"
+    app.kubernetes.io/component: application
+    app.kubernetes.io/part-of: lab-04-helm-kustomize
+    app.kubernetes.io/managed-by: kubectl
   annotations:
     argocd.argoproj.io/sync-wave: "2"
 spec:
@@ -595,6 +663,12 @@ kind: Service
 metadata:
   name: web-app
   namespace: sync-waves-demo
+  labels:
+    app.kubernetes.io/name: web-app-svc
+    app.kubernetes.io/instance: sync-waves-demo
+    app.kubernetes.io/component: service
+    app.kubernetes.io/part-of: lab-04-helm-kustomize
+    app.kubernetes.io/managed-by: kubectl
   annotations:
     argocd.argoproj.io/sync-wave: "2"
 spec:
@@ -642,6 +716,13 @@ kind: Job
 metadata:
   name: db-migration
   namespace: sync-waves-demo
+  labels:
+    app.kubernetes.io/name: db-migration
+    app.kubernetes.io/instance: sync-waves-demo
+    app.kubernetes.io/version: "1.36"
+    app.kubernetes.io/component: hook
+    app.kubernetes.io/part-of: lab-04-helm-kustomize
+    app.kubernetes.io/managed-by: kubectl
   annotations:
     argocd.argoproj.io/hook: PreSync
     argocd.argoproj.io/hook-delete-policy: HookSucceeded
@@ -675,6 +756,13 @@ kind: Job
 metadata:
   name: smoke-test
   namespace: sync-waves-demo
+  labels:
+    app.kubernetes.io/name: smoke-test
+    app.kubernetes.io/instance: sync-waves-demo
+    app.kubernetes.io/version: "8.4.0"
+    app.kubernetes.io/component: hook
+    app.kubernetes.io/part-of: lab-04-helm-kustomize
+    app.kubernetes.io/managed-by: kubectl
   annotations:
     argocd.argoproj.io/hook: PostSync
     argocd.argoproj.io/hook-delete-policy: HookSucceeded
@@ -706,6 +794,13 @@ kind: Job
 metadata:
   name: notify-failure
   namespace: sync-waves-demo
+  labels:
+    app.kubernetes.io/name: notify-failure
+    app.kubernetes.io/instance: sync-waves-demo
+    app.kubernetes.io/version: "1.36"
+    app.kubernetes.io/component: hook
+    app.kubernetes.io/part-of: lab-04-helm-kustomize
+    app.kubernetes.io/managed-by: kubectl
   annotations:
     argocd.argoproj.io/hook: SyncFail
     argocd.argoproj.io/hook-delete-policy: HookSucceeded
@@ -756,6 +851,12 @@ kind: Application
 metadata:
   name: multi-source-app
   namespace: argocd
+  labels:
+    app.kubernetes.io/name: multi-source-app
+    app.kubernetes.io/instance: multi-source-app-argocd
+    app.kubernetes.io/component: application
+    app.kubernetes.io/part-of: lab-04-helm-kustomize
+    app.kubernetes.io/managed-by: kubectl
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:

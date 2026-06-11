@@ -64,7 +64,11 @@ metadata:
   namespace: production
   labels:
     app.kubernetes.io/name: cloud-storage-consumer
+    app.kubernetes.io/instance: cloud-storage-consumer-v1
+    app.kubernetes.io/version: "1.0.0"
     app.kubernetes.io/component: backend-api
+    app.kubernetes.io/part-of: cloud-storage-pipeline
+    app.kubernetes.io/managed-by: kubectl
 spec:
   replicas: 2
   selector:
@@ -159,6 +163,11 @@ To elevate the security threshold of your cryptographic parameters inside produc
   metadata:
     namespace: production
     name: secret-reader-restriction
+    labels:
+      app.kubernetes.io/name: secret-reader-restriction
+      app.kubernetes.io/component: rbac
+      app.kubernetes.io/part-of: security-policy
+      app.kubernetes.io/managed-by: kubectl
   rules:
   - apiGroups: [""]
     resources: ["secrets"]

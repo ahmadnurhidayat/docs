@@ -321,7 +321,11 @@ metadata:
   name: nginx-app
   namespace: argocd
   labels:
-    app.kubernetes.io/managed-by: platform-team
+    app.kubernetes.io/name: nginx-app
+    app.kubernetes.io/instance: nginx-app-argocd
+    app.kubernetes.io/component: application
+    app.kubernetes.io/part-of: lab-03-gitops
+    app.kubernetes.io/managed-by: kubectl
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
@@ -516,6 +520,12 @@ kind: Application
 metadata:
   name: helm-guestbook
   namespace: argocd
+  labels:
+    app.kubernetes.io/name: helm-guestbook
+    app.kubernetes.io/instance: helm-guestbook-argocd
+    app.kubernetes.io/component: application
+    app.kubernetes.io/part-of: lab-03-gitops
+    app.kubernetes.io/managed-by: kubectl
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
@@ -561,6 +571,12 @@ kind: AppProject
 metadata:
   name: platform-labs
   namespace: argocd
+  labels:
+    app.kubernetes.io/name: platform-labs
+    app.kubernetes.io/instance: platform-labs-argocd
+    app.kubernetes.io/component: project
+    app.kubernetes.io/part-of: lab-03-gitops
+    app.kubernetes.io/managed-by: kubectl
 spec:
   description: Platform Engineering Lab Applications
   sourceRepos:

@@ -149,6 +149,13 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: myapp-ingress
+  labels:
+    app.kubernetes.io/name: myapp-ingress
+    app.kubernetes.io/instance: myapp-ingress-eks
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: ingress
+    app.kubernetes.io/part-of: myapp
+    app.kubernetes.io/managed-by: kubectl
   annotations:
     kubernetes.io/ingress.class: "alb"
     alb.ingress.kubernetes.io/scheme: "internet-facing"
@@ -248,6 +255,13 @@ apiVersion: v1
 kind: LimitRange
 metadata:
   name: default-limits
+  labels:
+    app.kubernetes.io/name: default-limits
+    app.kubernetes.io/instance: default-limits-cluster
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: resource-management
+    app.kubernetes.io/part-of: kubernetes-cluster
+    app.kubernetes.io/managed-by: kubectl
 spec:
   limits:
     - default:
@@ -858,6 +872,13 @@ apiVersion: external-secrets.io/v1beta1
 kind: ExternalSecret
 metadata:
   name: db-credentials
+  labels:
+    app.kubernetes.io/name: myapp
+    app.kubernetes.io/instance: myapp-external-secret
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: secrets-management
+    app.kubernetes.io/part-of: myapp
+    app.kubernetes.io/managed-by: kubectl
 spec:
   refreshInterval: 1h
   secretStoreRef:
@@ -1126,6 +1147,13 @@ kind: ServiceAccount
 metadata:
   name: myapp-sa
   namespace: payments
+  labels:
+    app.kubernetes.io/name: myapp
+    app.kubernetes.io/instance: myapp-sa-eks
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: identity
+    app.kubernetes.io/part-of: myapp
+    app.kubernetes.io/managed-by: kubectl
   annotations:
     eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/MyAppS3ReadRole
 ```
@@ -1140,6 +1168,13 @@ kind: Role
 metadata:
   name: developer
   namespace: payments
+  labels:
+    app.kubernetes.io/name: payments-rbac
+    app.kubernetes.io/instance: developer-role-eks
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/part-of: payments
+    app.kubernetes.io/managed-by: kubectl
 rules:
   - apiGroups: ["apps"]
     resources: ["deployments", "replicasets"]
@@ -1156,6 +1191,13 @@ kind: RoleBinding
 metadata:
   name: developer-binding
   namespace: payments
+  labels:
+    app.kubernetes.io/name: payments-rbac
+    app.kubernetes.io/instance: developer-binding-eks
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/part-of: payments
+    app.kubernetes.io/managed-by: kubectl
 subjects:
   - kind: Group
     name: payments-team     # Mapped from IAM via aws-auth or EKS access entries
@@ -1207,6 +1249,13 @@ apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   name: myapp-hpa
+  labels:
+    app.kubernetes.io/name: myapp
+    app.kubernetes.io/instance: myapp-hpa-eks
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: autoscaling
+    app.kubernetes.io/part-of: myapp
+    app.kubernetes.io/managed-by: kubectl
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
@@ -1276,6 +1325,13 @@ apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
 metadata:
   name: worker-scaler
+  labels:
+    app.kubernetes.io/name: worker
+    app.kubernetes.io/instance: worker-scaler-eks
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: autoscaling
+    app.kubernetes.io/part-of: worker
+    app.kubernetes.io/managed-by: kubectl
 spec:
   scaleTargetRef:
     name: worker-deployment
@@ -1334,7 +1390,18 @@ kubectl create namespace tenant-b
 
 ```yaml
 # Bind tenant-a's team to a Role in their namespace only
+apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
+metadata:
+  name: tenant-a-binding
+  namespace: tenant-a
+  labels:
+    app.kubernetes.io/name: tenant-isolation
+    app.kubernetes.io/instance: tenant-a-rbac-binding
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/part-of: multi-tenant-cluster
+    app.kubernetes.io/managed-by: kubectl
 subjects:
   - kind: Group
     name: tenant-a-devs
@@ -1353,6 +1420,13 @@ kind: NetworkPolicy
 metadata:
   name: default-deny
   namespace: tenant-a
+  labels:
+    app.kubernetes.io/name: tenant-isolation
+    app.kubernetes.io/instance: tenant-a-default-deny
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: network-policy
+    app.kubernetes.io/part-of: multi-tenant-cluster
+    app.kubernetes.io/managed-by: kubectl
 spec:
   podSelector: {}
   policyTypes: [Ingress, Egress]
@@ -1362,6 +1436,13 @@ kind: NetworkPolicy
 metadata:
   name: allow-same-namespace
   namespace: tenant-a
+  labels:
+    app.kubernetes.io/name: tenant-isolation
+    app.kubernetes.io/instance: tenant-a-allow-same-ns
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: network-policy
+    app.kubernetes.io/part-of: multi-tenant-cluster
+    app.kubernetes.io/managed-by: kubectl
 spec:
   podSelector: {}
   ingress:
@@ -1377,6 +1458,13 @@ kind: ResourceQuota
 metadata:
   name: tenant-a-quota
   namespace: tenant-a
+  labels:
+    app.kubernetes.io/name: tenant-isolation
+    app.kubernetes.io/instance: tenant-a-resource-quota
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: resource-management
+    app.kubernetes.io/part-of: multi-tenant-cluster
+    app.kubernetes.io/managed-by: kubectl
 spec:
   hard:
     requests.cpu: "10"
@@ -1463,6 +1551,13 @@ spec:
    kind: PodDisruptionBudget
    metadata:
      name: myapp-pdb
+     labels:
+       app.kubernetes.io/name: myapp
+       app.kubernetes.io/instance: myapp-pdb-eks
+       app.kubernetes.io/version: "1.0.0"
+       app.kubernetes.io/component: reliability
+       app.kubernetes.io/part-of: myapp
+       app.kubernetes.io/managed-by: kubectl
    spec:
      minAvailable: 2      # At least 2 pods must remain available during disruption
      selector:
@@ -1545,6 +1640,13 @@ apiVersion: networking.istio.io/v1alpha3
 kind: VirtualService
 metadata:
   name: payments
+  labels:
+    app.kubernetes.io/name: payments
+    app.kubernetes.io/instance: payments-vs-istio
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: traffic-management
+    app.kubernetes.io/part-of: payments
+    app.kubernetes.io/managed-by: kubectl
 spec:
   hosts: [payments]
   http:
@@ -1567,6 +1669,13 @@ kind: PeerAuthentication
 metadata:
   name: default
   namespace: production
+  labels:
+    app.kubernetes.io/name: istio-mesh
+    app.kubernetes.io/instance: default-mtls-istio
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: security
+    app.kubernetes.io/part-of: service-mesh
+    app.kubernetes.io/managed-by: kubectl
 spec:
   mtls:
     mode: STRICT   # All traffic between pods must be mTLS
@@ -1580,6 +1689,13 @@ kind: AuthorizationPolicy
 metadata:
   name: payments-policy
   namespace: production
+  labels:
+    app.kubernetes.io/name: payments
+    app.kubernetes.io/instance: payments-authz-istio
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: security
+    app.kubernetes.io/part-of: payments
+    app.kubernetes.io/managed-by: kubectl
 spec:
   selector:
     matchLabels:
@@ -1644,6 +1760,13 @@ apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
   name: myapp-all-clusters
+  labels:
+    app.kubernetes.io/name: myapp
+    app.kubernetes.io/instance: myapp-appset-argo
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: gitops
+    app.kubernetes.io/part-of: multi-cluster-platform
+    app.kubernetes.io/managed-by: kubectl
 spec:
   generators:
     - list:
@@ -1679,6 +1802,13 @@ kind: Cluster
 apiVersion: cluster.x-k8s.io/v1beta1
 metadata:
   name: prod-ap-southeast-1
+  labels:
+    app.kubernetes.io/name: prod-cluster
+    app.kubernetes.io/instance: prod-ap-southeast-1-capi
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: cluster-management
+    app.kubernetes.io/part-of: multi-cluster-platform
+    app.kubernetes.io/managed-by: kubectl
 spec:
   infrastructureRef:
     kind: AWSCluster
