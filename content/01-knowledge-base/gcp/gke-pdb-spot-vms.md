@@ -60,7 +60,10 @@ metadata:
   namespace: production
   labels:
     app.kubernetes.io/name: order-processing-api
+    app.kubernetes.io/instance: order-processing-api-pdb
+    app.kubernetes.io/component: availability-policy
     app.kubernetes.io/part-of: e-commerce-platform
+    app.kubernetes.io/managed-by: kubectl
 spec:
   # Enforces that at least two pods must always remain healthy and accessible
   minAvailable: 2 

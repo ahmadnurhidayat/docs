@@ -72,6 +72,13 @@ apiVersion: apiextensions.crossplane.io/v1
 kind: CompositeResourceDefinition
 metadata:
   name: xdatabases.platform.example.com
+  labels:
+    app.kubernetes.io/name: xdatabase
+    app.kubernetes.io/instance: xdatabases
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: api-definition
+    app.kubernetes.io/part-of: platform-database
+    app.kubernetes.io/managed-by: kubectl
 spec:
   group: platform.example.com
   names:
@@ -160,6 +167,12 @@ metadata:
   labels:
     crossplane.io/xrd: xdatabases.platform.example.com
     provider: kubernetes
+    app.kubernetes.io/name: database-composition
+    app.kubernetes.io/instance: database-composition
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: api-implementation
+    app.kubernetes.io/part-of: platform-database
+    app.kubernetes.io/managed-by: kubectl
 spec:
   compositeTypeRef:
     apiVersion: platform.example.com/v1alpha1
@@ -383,6 +396,13 @@ kind: DatabaseClaim
 metadata:
   name: my-app-db
   namespace: platform-dev
+  labels:
+    app.kubernetes.io/name: my-app-db
+    app.kubernetes.io/instance: my-app-db
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: database
+    app.kubernetes.io/part-of: ecommerce-platform
+    app.kubernetes.io/managed-by: crossplane
 spec:
   parameters:
     size: small
@@ -429,6 +449,13 @@ kind: DatabaseClaim
 metadata:
   name: staging-orders-db
   namespace: platform-staging
+  labels:
+    app.kubernetes.io/name: staging-orders-db
+    app.kubernetes.io/instance: staging-orders-db
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: database
+    app.kubernetes.io/part-of: ecommerce-platform
+    app.kubernetes.io/managed-by: crossplane
 spec:
   parameters:
     size: medium
@@ -446,6 +473,13 @@ kind: DatabaseClaim
 metadata:
   name: prod-orders-db
   namespace: platform-prod
+  labels:
+    app.kubernetes.io/name: prod-orders-db
+    app.kubernetes.io/instance: prod-orders-db
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: database
+    app.kubernetes.io/part-of: ecommerce-platform
+    app.kubernetes.io/managed-by: crossplane
 spec:
   parameters:
     size: large
@@ -485,6 +519,13 @@ apiVersion: apiextensions.crossplane.io/v1
 kind: CompositeResourceDefinition
 metadata:
   name: xappenvironments.platform.example.com
+  labels:
+    app.kubernetes.io/name: xappenvironment
+    app.kubernetes.io/instance: xappenvironments
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: api-definition
+    app.kubernetes.io/part-of: platform-environment
+    app.kubernetes.io/managed-by: kubectl
 spec:
   group: platform.example.com
   names:
@@ -540,6 +581,13 @@ apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
   name: app-environment-composition
+  labels:
+    app.kubernetes.io/name: app-environment-composition
+    app.kubernetes.io/instance: app-environment-composition
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: api-implementation
+    app.kubernetes.io/part-of: platform-environment
+    app.kubernetes.io/managed-by: kubectl
 spec:
   compositeTypeRef:
     apiVersion: platform.example.com/v1alpha1
@@ -669,6 +717,13 @@ kind: AppEnvironmentClaim
 metadata:
   name: frontend
   namespace: platform-dev
+  labels:
+    app.kubernetes.io/name: myapp
+    app.kubernetes.io/instance: frontend
+    app.kubernetes.io/version: "0.2.3"
+    app.kubernetes.io/component: frontend
+    app.kubernetes.io/part-of: platform-environment
+    app.kubernetes.io/managed-by: crossplane
 spec:
   parameters:
     appName: myapp

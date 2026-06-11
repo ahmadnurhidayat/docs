@@ -138,6 +138,13 @@ apiVersion: pkg.crossplane.io/v1
 kind: Provider
 metadata:
   name: provider-kubernetes
+  labels:
+    app.kubernetes.io/name: provider-kubernetes
+    app.kubernetes.io/instance: provider-kubernetes
+    app.kubernetes.io/version: "0.14.1"
+    app.kubernetes.io/component: provider
+    app.kubernetes.io/part-of: lab-05-crossplane
+    app.kubernetes.io/managed-by: kubectl
 spec:
   package: xpkg.upbound.io/crossplane-contrib/provider-kubernetes:v0.14.1
 EOF
@@ -178,6 +185,12 @@ apiVersion: kubernetes.crossplane.io/v1alpha1
 kind: ProviderConfig
 metadata:
   name: kubernetes-provider
+  labels:
+    app.kubernetes.io/name: kubernetes-provider
+    app.kubernetes.io/instance: kubernetes-provider
+    app.kubernetes.io/component: provider-config
+    app.kubernetes.io/part-of: lab-05-crossplane
+    app.kubernetes.io/managed-by: kubectl
 spec:
   credentials:
     source: InjectedIdentity
@@ -199,6 +212,12 @@ apiVersion: kubernetes.crossplane.io/v1alpha2
 kind: Object
 metadata:
   name: crossplane-demo-namespace
+  labels:
+    app.kubernetes.io/name: crossplane-demo-namespace
+    app.kubernetes.io/instance: crossplane-demo
+    app.kubernetes.io/component: managed-resource
+    app.kubernetes.io/part-of: lab-05-crossplane
+    app.kubernetes.io/managed-by: Crossplane
 spec:
   providerConfigRef:
     name: kubernetes-provider
@@ -254,6 +273,12 @@ apiVersion: kubernetes.crossplane.io/v1alpha2
 kind: Object
 metadata:
   name: demo-configmap
+  labels:
+    app.kubernetes.io/name: demo-configmap
+    app.kubernetes.io/instance: crossplane-demo
+    app.kubernetes.io/component: managed-resource
+    app.kubernetes.io/part-of: lab-05-crossplane
+    app.kubernetes.io/managed-by: Crossplane
 spec:
   providerConfigRef:
     name: kubernetes-provider
@@ -276,6 +301,13 @@ apiVersion: kubernetes.crossplane.io/v1alpha2
 kind: Object
 metadata:
   name: demo-deployment
+  labels:
+    app.kubernetes.io/name: demo-deployment
+    app.kubernetes.io/instance: crossplane-demo
+    app.kubernetes.io/version: "0.2.3"
+    app.kubernetes.io/component: managed-resource
+    app.kubernetes.io/part-of: lab-05-crossplane
+    app.kubernetes.io/managed-by: Crossplane
 spec:
   providerConfigRef:
     name: kubernetes-provider
@@ -324,6 +356,12 @@ apiVersion: kubernetes.crossplane.io/v1alpha2
 kind: Object
 metadata:
   name: demo-service
+  labels:
+    app.kubernetes.io/name: demo-service
+    app.kubernetes.io/instance: crossplane-demo
+    app.kubernetes.io/component: managed-resource
+    app.kubernetes.io/part-of: lab-05-crossplane
+    app.kubernetes.io/managed-by: Crossplane
 spec:
   providerConfigRef:
     name: kubernetes-provider
@@ -363,6 +401,13 @@ apiVersion: pkg.crossplane.io/v1
 kind: Provider
 metadata:
   name: provider-helm
+  labels:
+    app.kubernetes.io/name: provider-helm
+    app.kubernetes.io/instance: provider-helm
+    app.kubernetes.io/version: "0.19.0"
+    app.kubernetes.io/component: provider
+    app.kubernetes.io/part-of: lab-05-crossplane
+    app.kubernetes.io/managed-by: kubectl
 spec:
   package: xpkg.upbound.io/crossplane-contrib/provider-helm:v0.19.0
 EOF
@@ -391,6 +436,12 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: provider-helm-admin
+  labels:
+    app.kubernetes.io/name: provider-helm-admin
+    app.kubernetes.io/instance: crossplane-system
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/part-of: lab-05-crossplane
+    app.kubernetes.io/managed-by: kubectl
 subjects:
   - kind: ServiceAccount
     name: provider-helm-*
@@ -416,6 +467,12 @@ apiVersion: helm.crossplane.io/v1beta1
 kind: ProviderConfig
 metadata:
   name: helm-provider
+  labels:
+    app.kubernetes.io/name: helm-provider
+    app.kubernetes.io/instance: helm-provider
+    app.kubernetes.io/component: provider-config
+    app.kubernetes.io/part-of: lab-05-crossplane
+    app.kubernetes.io/managed-by: kubectl
 spec:
   credentials:
     source: InjectedIdentity
@@ -432,6 +489,13 @@ apiVersion: helm.crossplane.io/v1beta1
 kind: Release
 metadata:
   name: redis-crossplane
+  labels:
+    app.kubernetes.io/name: redis-crossplane
+    app.kubernetes.io/instance: crossplane-redis
+    app.kubernetes.io/version: "18.6.1"
+    app.kubernetes.io/component: managed-resource
+    app.kubernetes.io/part-of: lab-05-crossplane
+    app.kubernetes.io/managed-by: Crossplane
 spec:
   providerConfigRef:
     name: helm-provider
@@ -482,6 +546,13 @@ apiVersion: pkg.crossplane.io/v1
 kind: Provider
 metadata:
   name: provider-aws-s3
+  labels:
+    app.kubernetes.io/name: provider-aws-s3
+    app.kubernetes.io/instance: provider-aws-s3
+    app.kubernetes.io/version: "1.14.0"
+    app.kubernetes.io/component: provider
+    app.kubernetes.io/part-of: lab-05-crossplane
+    app.kubernetes.io/managed-by: kubectl
 spec:
   package: xpkg.upbound.io/upbound/provider-aws-s3:v1.14.0
 EOF
@@ -550,6 +621,12 @@ apiVersion: s3.aws.upbound.io/v1beta2
 kind: Bucket
 metadata:
   name: platform-lab-bucket
+  labels:
+    app.kubernetes.io/name: platform-lab-bucket
+    app.kubernetes.io/instance: platform-lab-bucket
+    app.kubernetes.io/component: managed-resource
+    app.kubernetes.io/part-of: lab-05-crossplane
+    app.kubernetes.io/managed-by: Crossplane
 spec:
   providerConfigRef:
     name: aws-provider
@@ -641,6 +718,12 @@ apiVersion: kubernetes.crossplane.io/v1alpha2
 kind: Object
 metadata:
   name: orphan-test
+  labels:
+    app.kubernetes.io/name: orphan-test
+    app.kubernetes.io/instance: crossplane-demo
+    app.kubernetes.io/component: managed-resource
+    app.kubernetes.io/part-of: lab-05-crossplane
+    app.kubernetes.io/managed-by: Crossplane
 spec:
   providerConfigRef:
     name: kubernetes-provider

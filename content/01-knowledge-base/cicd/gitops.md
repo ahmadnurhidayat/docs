@@ -125,6 +125,12 @@ kind: Application
 metadata:
   name: root
   namespace: argocd
+  labels:
+    app.kubernetes.io/name: root-app
+    app.kubernetes.io/instance: root
+    app.kubernetes.io/component: app-of-apps
+    app.kubernetes.io/part-of: gitops-bootstrap
+    app.kubernetes.io/managed-by: kubectl
 spec:
   project: default
   source:
@@ -171,6 +177,12 @@ kind: Application
 metadata:
   name: myapp-production
   namespace: argocd
+  labels:
+    app.kubernetes.io/name: myapp
+    app.kubernetes.io/instance: myapp-production
+    app.kubernetes.io/component: application
+    app.kubernetes.io/part-of: myapp
+    app.kubernetes.io/managed-by: kubectl
   finalizers:
     - resources-finalizer.argocd.argoproj.io  # deletes cluster resources when App is deleted
 spec:
@@ -211,6 +223,12 @@ kind: AppProject
 metadata:
   name: myapp-project
   namespace: argocd
+  labels:
+    app.kubernetes.io/name: myapp-project
+    app.kubernetes.io/instance: myapp-project
+    app.kubernetes.io/component: appproject
+    app.kubernetes.io/part-of: myapp
+    app.kubernetes.io/managed-by: kubectl
 spec:
   description: "Production applications for the myapp team"
 
@@ -253,6 +271,12 @@ kind: ApplicationSet
 metadata:
   name: myapp-environments
   namespace: argocd
+  labels:
+    app.kubernetes.io/name: myapp
+    app.kubernetes.io/instance: myapp-environments
+    app.kubernetes.io/component: applicationset
+    app.kubernetes.io/part-of: myapp
+    app.kubernetes.io/managed-by: kubectl
 spec:
   generators:
     - list:
@@ -296,6 +320,13 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: db-migrate
+  labels:
+    app.kubernetes.io/name: myapp
+    app.kubernetes.io/instance: myapp-db-migrate
+    app.kubernetes.io/version: latest
+    app.kubernetes.io/component: database-migration
+    app.kubernetes.io/part-of: myapp
+    app.kubernetes.io/managed-by: kubectl
   annotations:
     argocd.argoproj.io/hook: PreSync
     argocd.argoproj.io/hook-delete-policy: HookSucceeded
@@ -338,6 +369,12 @@ kind: GitRepository
 metadata:
   name: myapp
   namespace: flux-system
+  labels:
+    app.kubernetes.io/name: myapp
+    app.kubernetes.io/instance: myapp-gitrepo
+    app.kubernetes.io/component: git-repository
+    app.kubernetes.io/part-of: myapp
+    app.kubernetes.io/managed-by: Helm
 spec:
   interval: 1m                    # how often to poll for new commits
   url: https://github.com/your-org/myapp
@@ -355,6 +392,12 @@ kind: Kustomization
 metadata:
   name: myapp-production
   namespace: flux-system
+  labels:
+    app.kubernetes.io/name: myapp
+    app.kubernetes.io/instance: myapp-production
+    app.kubernetes.io/component: kustomization
+    app.kubernetes.io/part-of: myapp
+    app.kubernetes.io/managed-by: Helm
 spec:
   interval: 5m
   path: ./deploy/production        # path within the GitRepository to reconcile
@@ -385,6 +428,12 @@ kind: ImageRepository
 metadata:
   name: myapp
   namespace: flux-system
+  labels:
+    app.kubernetes.io/name: myapp
+    app.kubernetes.io/instance: myapp-imagerepo
+    app.kubernetes.io/component: image-repository
+    app.kubernetes.io/part-of: myapp
+    app.kubernetes.io/managed-by: Helm
 spec:
   image: 123456789012.dkr.ecr.ap-southeast-1.amazonaws.com/myapp
   interval: 1m
@@ -396,6 +445,12 @@ kind: ImagePolicy
 metadata:
   name: myapp
   namespace: flux-system
+  labels:
+    app.kubernetes.io/name: myapp
+    app.kubernetes.io/instance: myapp-imagepolicy
+    app.kubernetes.io/component: image-policy
+    app.kubernetes.io/part-of: myapp
+    app.kubernetes.io/managed-by: Helm
 spec:
   imageRepositoryRef:
     name: myapp
@@ -410,6 +465,12 @@ kind: ImageUpdateAutomation
 metadata:
   name: myapp
   namespace: flux-system
+  labels:
+    app.kubernetes.io/name: myapp
+    app.kubernetes.io/instance: myapp-imageautomation
+    app.kubernetes.io/component: image-automation
+    app.kubernetes.io/part-of: myapp
+    app.kubernetes.io/managed-by: Helm
 spec:
   interval: 1m
   sourceRef:
@@ -447,6 +508,12 @@ kind: HelmRelease
 metadata:
   name: myapp
   namespace: myapp-production
+  labels:
+    app.kubernetes.io/name: myapp
+    app.kubernetes.io/instance: myapp
+    app.kubernetes.io/component: helm-release
+    app.kubernetes.io/part-of: myapp
+    app.kubernetes.io/managed-by: Helm
 spec:
   interval: 5m
   chart:
@@ -502,6 +569,13 @@ kind: Application
 metadata:
   name: myapp-production
   namespace: argocd
+  labels:
+    app.kubernetes.io/name: myapp
+    app.kubernetes.io/instance: myapp-production
+    app.kubernetes.io/version: 1.4.2
+    app.kubernetes.io/component: application
+    app.kubernetes.io/part-of: myapp
+    app.kubernetes.io/managed-by: kubectl
 spec:
   project: myapp-project
   source:
@@ -648,6 +722,13 @@ kind: Rollout
 metadata:
   name: myapp
   namespace: myapp-production
+  labels:
+    app.kubernetes.io/name: myapp
+    app.kubernetes.io/instance: myapp-production
+    app.kubernetes.io/version: v2
+    app.kubernetes.io/component: rollout
+    app.kubernetes.io/part-of: myapp
+    app.kubernetes.io/managed-by: kubectl
 spec:
   replicas: 10
   selector:
@@ -695,6 +776,12 @@ kind: AnalysisTemplate
 metadata:
   name: success-rate
   namespace: myapp-production
+  labels:
+    app.kubernetes.io/name: myapp
+    app.kubernetes.io/instance: success-rate
+    app.kubernetes.io/component: analysis-template
+    app.kubernetes.io/part-of: myapp
+    app.kubernetes.io/managed-by: kubectl
 spec:
   args:
     - name: service-name
@@ -755,6 +842,12 @@ kind: Workflow
 metadata:
   generateName: ci-pipeline-
   namespace: argo-workflows
+  labels:
+    app.kubernetes.io/name: myapp-ci-pipeline
+    app.kubernetes.io/instance: ci-pipeline
+    app.kubernetes.io/component: ci-workflow
+    app.kubernetes.io/part-of: myapp
+    app.kubernetes.io/managed-by: kubectl
 spec:
   entrypoint: pipeline
   templates:
@@ -853,6 +946,12 @@ kind: Secret
 metadata:
   name: myapp-db-credentials
   namespace: myapp-production
+  labels:
+    app.kubernetes.io/name: myapp
+    app.kubernetes.io/instance: myapp-db-credentials
+    app.kubernetes.io/component: secret
+    app.kubernetes.io/part-of: myapp
+    app.kubernetes.io/managed-by: kubectl
 type: Opaque
 stringData:
   DB_PASSWORD: "supersecret"
@@ -863,6 +962,12 @@ kind: Secret
 metadata:
   name: myapp-db-credentials
   namespace: myapp-production
+  labels:
+    app.kubernetes.io/name: myapp
+    app.kubernetes.io/instance: myapp-db-credentials
+    app.kubernetes.io/component: secret
+    app.kubernetes.io/part-of: myapp
+    app.kubernetes.io/managed-by: kubectl
 type: Opaque
 stringData:
   DB_PASSWORD: ENC[AES256_GCM,data:abc123...,tag:xyz==,type:str]
@@ -893,6 +998,12 @@ kind: ExternalSecret
 metadata:
   name: myapp-db-credentials
   namespace: myapp-production
+  labels:
+    app.kubernetes.io/name: myapp
+    app.kubernetes.io/instance: myapp-db-credentials
+    app.kubernetes.io/component: external-secret
+    app.kubernetes.io/part-of: myapp
+    app.kubernetes.io/managed-by: kubectl
 spec:
   refreshInterval: 1h              # re-fetch from the store every hour
   secretStoreRef:
@@ -917,6 +1028,12 @@ apiVersion: external-secrets.io/v1beta1
 kind: ClusterSecretStore
 metadata:
   name: aws-secretsmanager
+  labels:
+    app.kubernetes.io/name: aws-secretsmanager
+    app.kubernetes.io/instance: aws-secretsmanager
+    app.kubernetes.io/component: secret-store
+    app.kubernetes.io/part-of: platform-infrastructure
+    app.kubernetes.io/managed-by: kubectl
 spec:
   provider:
     aws:
@@ -981,6 +1098,12 @@ kind: ApplicationSet
 metadata:
   name: myapp-all-clusters
   namespace: argocd
+  labels:
+    app.kubernetes.io/name: myapp
+    app.kubernetes.io/instance: myapp-all-clusters
+    app.kubernetes.io/component: applicationset
+    app.kubernetes.io/part-of: myapp
+    app.kubernetes.io/managed-by: kubectl
 spec:
   generators:
     - clusters:
@@ -1050,6 +1173,12 @@ kind: AppProject
 metadata:
   name: team-payments
   namespace: argocd
+  labels:
+    app.kubernetes.io/name: payments
+    app.kubernetes.io/instance: team-payments
+    app.kubernetes.io/component: appproject
+    app.kubernetes.io/part-of: payments
+    app.kubernetes.io/managed-by: kubectl
 spec:
   sourceRepos:
     - https://github.com/your-org/payments-*   # wildcard — only payments repos
@@ -1087,6 +1216,12 @@ kind: ConfigMap
 metadata:
   name: argocd-rbac-cm
   namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd
+    app.kubernetes.io/instance: argocd-rbac
+    app.kubernetes.io/component: rbac-config
+    app.kubernetes.io/part-of: argocd
+    app.kubernetes.io/managed-by: kubectl
 data:
   policy.csv: |
     # Platform team — full admin
@@ -1111,6 +1246,12 @@ kind: Kustomization
 metadata:
   name: payments-app
   namespace: payments             # Kustomization lives in the tenant's namespace
+  labels:
+    app.kubernetes.io/name: payments
+    app.kubernetes.io/instance: payments-app
+    app.kubernetes.io/component: kustomization
+    app.kubernetes.io/part-of: payments
+    app.kubernetes.io/managed-by: Helm
 spec:
   serviceAccountName: payments-reconciler   # runs with this SA's RBAC, not cluster-admin
   interval: 5m
@@ -1129,6 +1270,12 @@ kind: RoleBinding
 metadata:
   name: payments-reconciler
   namespace: payments
+  labels:
+    app.kubernetes.io/name: payments
+    app.kubernetes.io/instance: payments-reconciler
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/part-of: payments
+    app.kubernetes.io/managed-by: kubectl
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole

@@ -240,6 +240,12 @@ kind: PersistentVolumeClaim
 metadata:
   name: payments-data
   namespace: payments
+  labels:
+    app.kubernetes.io/name: payments-db
+    app.kubernetes.io/instance: payments-data-pvc
+    app.kubernetes.io/component: storage
+    app.kubernetes.io/part-of: payments
+    app.kubernetes.io/managed-by: kubectl
 spec:
   accessModes: [ReadWriteOnce]
   storageClassName: ebs-gp3-encrypted
@@ -393,6 +399,11 @@ apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: ebs-gp3-encrypted
+  labels:
+    app.kubernetes.io/name: ebs-gp3-encrypted
+    app.kubernetes.io/component: storage-class
+    app.kubernetes.io/part-of: platform-storage
+    app.kubernetes.io/managed-by: kubectl
   annotations:
     storageclass.kubernetes.io/is-default-class: "true"   # Default SC for PVCs that don't specify one
 provisioner: ebs.csi.aws.com
@@ -441,6 +452,11 @@ apiVersion: snapshot.storage.k8s.io/v1
 kind: VolumeSnapshotClass
 metadata:
   name: ebs-vsc
+  labels:
+    app.kubernetes.io/name: ebs-vsc
+    app.kubernetes.io/component: snapshot-class
+    app.kubernetes.io/part-of: platform-storage
+    app.kubernetes.io/managed-by: kubectl
   annotations:
     snapshot.storage.kubernetes.io/is-default-class: "true"
 driver: ebs.csi.aws.com
@@ -456,6 +472,12 @@ kind: VolumeSnapshot
 metadata:
   name: payments-db-snapshot-2026-05-25
   namespace: payments
+  labels:
+    app.kubernetes.io/name: payments-db
+    app.kubernetes.io/instance: payments-db-snapshot-20260525
+    app.kubernetes.io/component: backup
+    app.kubernetes.io/part-of: payments
+    app.kubernetes.io/managed-by: kubectl
 spec:
   volumeSnapshotClassName: ebs-vsc
   source:
@@ -471,6 +493,12 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: payments-data-restored
+  labels:
+    app.kubernetes.io/name: payments-db
+    app.kubernetes.io/instance: payments-data-restored
+    app.kubernetes.io/component: storage
+    app.kubernetes.io/part-of: payments
+    app.kubernetes.io/managed-by: kubectl
 spec:
   accessModes: [ReadWriteOnce]
   storageClassName: ebs-gp3-encrypted
@@ -575,6 +603,11 @@ apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: ebs-gp3
+  labels:
+    app.kubernetes.io/name: ebs-gp3
+    app.kubernetes.io/component: storage-class
+    app.kubernetes.io/part-of: platform-storage
+    app.kubernetes.io/managed-by: kubectl
 provisioner: ebs.csi.aws.com
 parameters:
   type: gp3
@@ -589,6 +622,11 @@ apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: ebs-io2-high-perf
+  labels:
+    app.kubernetes.io/name: ebs-io2-high-perf
+    app.kubernetes.io/component: storage-class
+    app.kubernetes.io/part-of: platform-storage
+    app.kubernetes.io/managed-by: kubectl
 provisioner: ebs.csi.aws.com
 parameters:
   type: io2
@@ -705,6 +743,11 @@ kind: ConfigMap
 metadata:
   name: ceph-csi-config
   namespace: ceph-csi
+  labels:
+    app.kubernetes.io/name: ceph-csi
+    app.kubernetes.io/component: storage-config
+    app.kubernetes.io/part-of: ceph-storage
+    app.kubernetes.io/managed-by: kubectl
 data:
   config.json: |
     [
@@ -729,6 +772,11 @@ kind: Secret
 metadata:
   name: ceph-admin-secret
   namespace: ceph-csi
+  labels:
+    app.kubernetes.io/name: ceph-csi
+    app.kubernetes.io/component: storage-auth
+    app.kubernetes.io/part-of: ceph-storage
+    app.kubernetes.io/managed-by: kubectl
 stringData:
   userID: admin
   userKey: AQDu/mBloc6LExAAnkasdfExampleKeyHere==
@@ -743,6 +791,11 @@ apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: ceph-rbd-ssd
+  labels:
+    app.kubernetes.io/name: ceph-rbd-ssd
+    app.kubernetes.io/component: storage-class
+    app.kubernetes.io/part-of: ceph-storage
+    app.kubernetes.io/managed-by: kubectl
 provisioner: rbd.csi.ceph.com
 parameters:
   clusterID: b9127830-b0cc-4e34-aa47-9d1a2e9949a8
@@ -793,6 +846,11 @@ apiVersion: snapshot.storage.k8s.io/v1
 kind: VolumeSnapshotClass
 metadata:
   name: ceph-rbd-vsc
+  labels:
+    app.kubernetes.io/name: ceph-rbd-vsc
+    app.kubernetes.io/component: snapshot-class
+    app.kubernetes.io/part-of: ceph-storage
+    app.kubernetes.io/managed-by: kubectl
 driver: rbd.csi.ceph.com
 deletionPolicy: Retain
 parameters:
@@ -814,6 +872,11 @@ apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: cephfs-shared
+  labels:
+    app.kubernetes.io/name: cephfs-shared
+    app.kubernetes.io/component: storage-class
+    app.kubernetes.io/part-of: ceph-storage
+    app.kubernetes.io/managed-by: kubectl
 provisioner: cephfs.csi.ceph.com
 parameters:
   clusterID: b9127830-b0cc-4e34-aa47-9d1a2e9949a8

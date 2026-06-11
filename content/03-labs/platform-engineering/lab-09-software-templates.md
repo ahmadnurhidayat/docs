@@ -349,6 +349,12 @@ metadata:
     app: ${{ values.serviceName }}
     environment: ${{ values.environment }}
     managed-by: backstage-scaffolder
+    app.kubernetes.io/name: ${{ values.serviceName }}
+    app.kubernetes.io/instance: ${{ values.serviceName }}
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: ${{ values.language }}
+    app.kubernetes.io/part-of: ${{ values.serviceName }}
+    app.kubernetes.io/managed-by: backstage
 spec:
   replicas: ${{ values.replicas }}
   selector:
@@ -398,6 +404,12 @@ metadata:
   namespace: platform-${{ values.environment }}
   labels:
     app: ${{ values.serviceName }}
+    app.kubernetes.io/name: ${{ values.serviceName }}
+    app.kubernetes.io/instance: ${{ values.serviceName }}
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: ${{ values.language }}
+    app.kubernetes.io/part-of: ${{ values.serviceName }}
+    app.kubernetes.io/managed-by: backstage
 spec:
   selector:
     app: ${{ values.serviceName }}
@@ -578,6 +590,11 @@ metadata:
   name: ${{ values.databaseName }}
   namespace: platform-${{ values.environment }}
   labels:
+    app.kubernetes.io/name: ${{ values.databaseName }}
+    app.kubernetes.io/instance: ${{ values.databaseName }}
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: database
+    app.kubernetes.io/part-of: ecommerce-platform
     app.kubernetes.io/managed-by: backstage
     backstage.io/template: request-database
     team: ${{ values.ownerTeam }}

@@ -55,6 +55,13 @@ kind: ApplicationSet
 metadata:
   name: multi-env-guestbook
   namespace: argocd
+  labels:
+    app.kubernetes.io/name: guestbook
+    app.kubernetes.io/instance: multi-env-guestbook
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/component: application-set
+    app.kubernetes.io/part-of: argocd
+    app.kubernetes.io/managed-by: kubectl
 spec:
   generators:
     - list:
@@ -113,6 +120,13 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: frontend
+  labels:
+    app.kubernetes.io/name: frontend
+    app.kubernetes.io/instance: frontend
+    app.kubernetes.io/version: "1.25"
+    app.kubernetes.io/component: frontend
+    app.kubernetes.io/part-of: gitops-monorepo
+    app.kubernetes.io/managed-by: kubectl
 spec:
   replicas: 2
   selector:
@@ -138,6 +152,13 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: backend
+  labels:
+    app.kubernetes.io/name: backend
+    app.kubernetes.io/instance: backend
+    app.kubernetes.io/version: "0.2.3"
+    app.kubernetes.io/component: backend
+    app.kubernetes.io/part-of: gitops-monorepo
+    app.kubernetes.io/managed-by: kubectl
 spec:
   replicas: 2
   selector:
@@ -164,6 +185,13 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: worker
+  labels:
+    app.kubernetes.io/name: worker
+    app.kubernetes.io/instance: worker
+    app.kubernetes.io/version: "1.36"
+    app.kubernetes.io/component: worker
+    app.kubernetes.io/part-of: gitops-monorepo
+    app.kubernetes.io/managed-by: kubectl
 spec:
   replicas: 1
   selector:
@@ -189,6 +217,13 @@ kind: ApplicationSet
 metadata:
   name: monorepo-apps
   namespace: argocd
+  labels:
+    app.kubernetes.io/name: monorepo-apps
+    app.kubernetes.io/instance: monorepo-apps
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/component: application-set
+    app.kubernetes.io/part-of: argocd
+    app.kubernetes.io/managed-by: kubectl
 spec:
   generators:
     - git:
@@ -232,6 +267,13 @@ kind: ApplicationSet
 metadata:
   name: matrix-deploy
   namespace: argocd
+  labels:
+    app.kubernetes.io/name: matrix-deploy
+    app.kubernetes.io/instance: matrix-deploy
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/component: application-set
+    app.kubernetes.io/part-of: argocd
+    app.kubernetes.io/managed-by: kubectl
 spec:
   generators:
     - matrix:
@@ -283,6 +325,13 @@ kind: ApplicationSet
 metadata:
   name: go-template-demo
   namespace: argocd
+  labels:
+    app.kubernetes.io/name: go-template-demo
+    app.kubernetes.io/instance: go-template-demo
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/component: application-set
+    app.kubernetes.io/part-of: argocd
+    app.kubernetes.io/managed-by: kubectl
 spec:
   goTemplate: true
   goTemplateOptions: ["missingkey=error"]
@@ -336,6 +385,13 @@ kind: ApplicationSet
 metadata:
   name: platform-services
   namespace: argocd
+  labels:
+    app.kubernetes.io/name: platform-services
+    app.kubernetes.io/instance: platform-services
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/component: application-set
+    app.kubernetes.io/part-of: platform-services
+    app.kubernetes.io/managed-by: kubectl
 spec:
   generators:
     - list:

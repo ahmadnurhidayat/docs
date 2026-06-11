@@ -66,6 +66,13 @@ apiVersion: kubernetes.crossplane.io/v1alpha2
 kind: Object
 metadata:
   name: monitoring-namespace
+  labels:
+    app.kubernetes.io/name: monitoring
+    app.kubernetes.io/instance: monitoring-namespace
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: observability
+    app.kubernetes.io/part-of: platform-monitoring
+    app.kubernetes.io/managed-by: crossplane
 spec:
   providerConfigRef:
     name: kubernetes-provider
@@ -92,6 +99,13 @@ apiVersion: helm.crossplane.io/v1beta1
 kind: Release
 metadata:
   name: prometheus
+  labels:
+    app.kubernetes.io/name: kube-prometheus-stack
+    app.kubernetes.io/instance: prometheus
+    app.kubernetes.io/version: "55.5.0"
+    app.kubernetes.io/component: observability
+    app.kubernetes.io/part-of: platform-monitoring
+    app.kubernetes.io/managed-by: crossplane
 spec:
   providerConfigRef:
     name: helm-provider
@@ -182,6 +196,13 @@ apiVersion: helm.crossplane.io/v1beta1
 kind: Release
 metadata:
   name: postgresql
+  labels:
+    app.kubernetes.io/name: postgresql
+    app.kubernetes.io/instance: postgresql
+    app.kubernetes.io/version: "13.2.24"
+    app.kubernetes.io/component: database
+    app.kubernetes.io/part-of: platform-data
+    app.kubernetes.io/managed-by: crossplane
 spec:
   providerConfigRef:
     name: helm-provider
@@ -232,6 +253,13 @@ apiVersion: kubernetes.crossplane.io/v1alpha2
 kind: Object
 metadata:
   name: db-consumer-app
+  labels:
+    app.kubernetes.io/name: db-consumer
+    app.kubernetes.io/instance: db-consumer-app
+    app.kubernetes.io/version: "1.36.0"
+    app.kubernetes.io/component: application
+    app.kubernetes.io/part-of: platform-data
+    app.kubernetes.io/managed-by: crossplane
 spec:
   providerConfigRef:
     name: kubernetes-provider
@@ -306,6 +334,13 @@ apiVersion: kubernetes.crossplane.io/v1alpha2
 kind: Object
 metadata:
   name: tiered-app-namespace
+  labels:
+    app.kubernetes.io/name: tiered-app
+    app.kubernetes.io/instance: tiered-app-namespace
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: infrastructure
+    app.kubernetes.io/part-of: tiered-app
+    app.kubernetes.io/managed-by: crossplane
   annotations:
     crossplane.io/external-name: tiered-app
 spec:
@@ -330,6 +365,13 @@ apiVersion: kubernetes.crossplane.io/v1alpha2
 kind: Object
 metadata:
   name: tiered-app-backend
+  labels:
+    app.kubernetes.io/name: backend
+    app.kubernetes.io/instance: tiered-app-backend
+    app.kubernetes.io/version: "0.2.3"
+    app.kubernetes.io/component: backend
+    app.kubernetes.io/part-of: tiered-app
+    app.kubernetes.io/managed-by: crossplane
 spec:
   providerConfigRef:
     name: kubernetes-provider
@@ -369,6 +411,13 @@ apiVersion: kubernetes.crossplane.io/v1alpha2
 kind: Object
 metadata:
   name: tiered-app-backend-svc
+  labels:
+    app.kubernetes.io/name: backend
+    app.kubernetes.io/instance: tiered-app-backend-svc
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: backend
+    app.kubernetes.io/part-of: tiered-app
+    app.kubernetes.io/managed-by: crossplane
 spec:
   providerConfigRef:
     name: kubernetes-provider
@@ -395,6 +444,13 @@ apiVersion: kubernetes.crossplane.io/v1alpha2
 kind: Object
 metadata:
   name: tiered-app-frontend
+  labels:
+    app.kubernetes.io/name: frontend
+    app.kubernetes.io/instance: tiered-app-frontend
+    app.kubernetes.io/version: "1.25.0"
+    app.kubernetes.io/component: frontend
+    app.kubernetes.io/part-of: tiered-app
+    app.kubernetes.io/managed-by: crossplane
 spec:
   providerConfigRef:
     name: kubernetes-provider
@@ -431,6 +487,13 @@ apiVersion: kubernetes.crossplane.io/v1alpha2
 kind: Object
 metadata:
   name: tiered-app-frontend-svc
+  labels:
+    app.kubernetes.io/name: frontend
+    app.kubernetes.io/instance: tiered-app-frontend-svc
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: frontend
+    app.kubernetes.io/part-of: tiered-app
+    app.kubernetes.io/managed-by: crossplane
 spec:
   providerConfigRef:
     name: kubernetes-provider
@@ -472,6 +535,13 @@ apiVersion: kubernetes.crossplane.io/v1alpha2
 kind: Object
 metadata:
   name: observe-legacy-config
+  labels:
+    app.kubernetes.io/name: legacy-config
+    app.kubernetes.io/instance: observe-legacy-config
+    app.kubernetes.io/version: "2.0.0"
+    app.kubernetes.io/component: configuration
+    app.kubernetes.io/part-of: legacy-app
+    app.kubernetes.io/managed-by: crossplane
 spec:
   providerConfigRef:
     name: kubernetes-provider
@@ -569,6 +639,12 @@ metadata:
   labels:
     environment: ${ENV}
     managed-by: crossplane
+    app.kubernetes.io/name: env-app
+    app.kubernetes.io/instance: env-app-${ENV}
+    app.kubernetes.io/version: "0.2.3"
+    app.kubernetes.io/component: application
+    app.kubernetes.io/part-of: platform-${ENV}
+    app.kubernetes.io/managed-by: crossplane
 spec:
   providerConfigRef:
     name: kubernetes-provider

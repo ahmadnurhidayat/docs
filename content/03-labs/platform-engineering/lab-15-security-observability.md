@@ -64,6 +64,13 @@ kind: AppProject
 metadata:
   name: backend-team
   namespace: argocd
+  labels:
+    app.kubernetes.io/name: backend-team-project
+    app.kubernetes.io/instance: backend-team
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/component: project
+    app.kubernetes.io/part-of: argocd
+    app.kubernetes.io/managed-by: kubectl
 spec:
   description: Backend Team Applications
   
@@ -133,6 +140,13 @@ kind: AppProject
 metadata:
   name: frontend-team
   namespace: argocd
+  labels:
+    app.kubernetes.io/name: frontend-team-project
+    app.kubernetes.io/instance: frontend-team
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/component: project
+    app.kubernetes.io/part-of: argocd
+    app.kubernetes.io/managed-by: kubectl
 spec:
   description: Frontend Team Applications
   sourceRepos:
@@ -160,6 +174,13 @@ kind: AppProject
 metadata:
   name: platform-team
   namespace: argocd
+  labels:
+    app.kubernetes.io/name: platform-team-project
+    app.kubernetes.io/instance: platform-team
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/component: project
+    app.kubernetes.io/part-of: argocd
+    app.kubernetes.io/managed-by: kubectl
 spec:
   description: Platform Team - Full Infrastructure Access
   sourceRepos: ["*"]
@@ -190,6 +211,13 @@ kind: Role
 metadata:
   name: crossplane-claim-creator
   namespace: platform-dev
+  labels:
+    app.kubernetes.io/name: crossplane-claims
+    app.kubernetes.io/instance: crossplane-claim-creator
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/part-of: crossplane
+    app.kubernetes.io/managed-by: kubectl
 rules:
   - apiGroups: ["platform.example.com"]
     resources: ["platformappclaims", "databaseclaims"]
@@ -203,6 +231,13 @@ kind: RoleBinding
 metadata:
   name: backend-team-claims
   namespace: platform-dev
+  labels:
+    app.kubernetes.io/name: crossplane-claims
+    app.kubernetes.io/instance: backend-team-claims
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/part-of: crossplane
+    app.kubernetes.io/managed-by: kubectl
 subjects:
   - kind: Group
     name: backend-team
@@ -220,6 +255,13 @@ kind: Role
 metadata:
   name: crossplane-claim-viewer
   namespace: platform-prod
+  labels:
+    app.kubernetes.io/name: crossplane-claims
+    app.kubernetes.io/instance: crossplane-claim-viewer
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/part-of: crossplane
+    app.kubernetes.io/managed-by: kubectl
 rules:
   - apiGroups: ["platform.example.com"]
     resources: ["platformappclaims", "databaseclaims"]
@@ -230,6 +272,13 @@ kind: RoleBinding
 metadata:
   name: backend-team-prod-viewer
   namespace: platform-prod
+  labels:
+    app.kubernetes.io/name: crossplane-claims
+    app.kubernetes.io/instance: backend-team-prod-viewer
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/part-of: crossplane
+    app.kubernetes.io/managed-by: kubectl
 subjects:
   - kind: Group
     name: backend-team
@@ -255,6 +304,13 @@ kind: NetworkPolicy
 metadata:
   name: default-deny-all
   namespace: platform-dev
+  labels:
+    app.kubernetes.io/name: network-policy
+    app.kubernetes.io/instance: default-deny-all-dev
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/component: security
+    app.kubernetes.io/part-of: platform-security
+    app.kubernetes.io/managed-by: kubectl
 spec:
   podSelector: {}
   policyTypes:
@@ -277,6 +333,13 @@ kind: NetworkPolicy
 metadata:
   name: allow-same-namespace
   namespace: platform-dev
+  labels:
+    app.kubernetes.io/name: network-policy
+    app.kubernetes.io/instance: allow-same-namespace-dev
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/component: security
+    app.kubernetes.io/part-of: platform-security
+    app.kubernetes.io/managed-by: kubectl
 spec:
   podSelector: {}
   policyTypes:
@@ -291,6 +354,13 @@ kind: NetworkPolicy
 metadata:
   name: allow-ingress
   namespace: platform-dev
+  labels:
+    app.kubernetes.io/name: network-policy
+    app.kubernetes.io/instance: allow-ingress-dev
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/component: security
+    app.kubernetes.io/part-of: platform-security
+    app.kubernetes.io/managed-by: kubectl
 spec:
   podSelector: {}
   policyTypes:
@@ -314,6 +384,13 @@ apiVersion: helm.crossplane.io/v1beta1
 kind: Release
 metadata:
   name: platform-monitoring
+  labels:
+    app.kubernetes.io/name: kube-prometheus-stack
+    app.kubernetes.io/instance: platform-monitoring
+    app.kubernetes.io/version: "55.5.0"
+    app.kubernetes.io/component: observability
+    app.kubernetes.io/part-of: platform-monitoring
+    app.kubernetes.io/managed-by: Helm
 spec:
   providerConfigRef:
     name: helm-provider
@@ -372,6 +449,13 @@ apiVersion: kubernetes.crossplane.io/v1alpha2
 kind: Object
 metadata:
   name: platform-alerts
+  labels:
+    app.kubernetes.io/name: platform-alerts
+    app.kubernetes.io/instance: platform-alerts
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/component: observability
+    app.kubernetes.io/part-of: platform-monitoring
+    app.kubernetes.io/managed-by: kubectl
 spec:
   providerConfigRef:
     name: kubernetes-provider
@@ -431,6 +515,13 @@ apiVersion: kubernetes.crossplane.io/v1alpha2
 kind: Object
 metadata:
   name: managed-secret-pattern
+  labels:
+    app.kubernetes.io/name: managed-secrets
+    app.kubernetes.io/instance: managed-secret-pattern
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/component: security
+    app.kubernetes.io/part-of: platform-security
+    app.kubernetes.io/managed-by: kubectl
 spec:
   providerConfigRef:
     name: kubernetes-provider
@@ -487,6 +578,12 @@ metadata:
   namespace: platform-${env}
   labels:
     governance: cost-control
+    app.kubernetes.io/name: environment-quota
+    app.kubernetes.io/instance: quota-platform-${env}
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/component: governance
+    app.kubernetes.io/part-of: platform-governance
+    app.kubernetes.io/managed-by: kubectl
 spec:
   hard:
     requests.cpu: "${MAX_CPU}"

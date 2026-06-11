@@ -54,6 +54,11 @@ metadata:
   namespace: prod
   labels:
     app.kubernetes.io/name: cymbalstore-backend
+    app.kubernetes.io/instance: cymbalstore-backend-v2-1-0
+    app.kubernetes.io/version: "2.1.0"
+    app.kubernetes.io/component: backend-jvm
+    app.kubernetes.io/part-of: cymbalstore
+    app.kubernetes.io/managed-by: kubectl
 spec:
   replicas: 3
   selector:
@@ -89,6 +94,11 @@ metadata:
   namespace: prod
   labels:
     app.kubernetes.io/name: cymbalstore-api
+    app.kubernetes.io/instance: cymbalstore-api-v1-4-2
+    app.kubernetes.io/version: "1.4.2"
+    app.kubernetes.io/component: api-gateway
+    app.kubernetes.io/part-of: cymbalstore
+    app.kubernetes.io/managed-by: kubectl
 spec:
   replicas: 3
   selector:
@@ -124,6 +134,11 @@ metadata:
   namespace: prod
   labels:
     app.kubernetes.io/name: cymbalstore-worker
+    app.kubernetes.io/instance: cymbalstore-worker-v1-0-8
+    app.kubernetes.io/version: "1.0.8"
+    app.kubernetes.io/component: async-worker
+    app.kubernetes.io/part-of: cymbalstore
+    app.kubernetes.io/managed-by: kubectl
 spec:
   replicas: 2
   selector:
@@ -163,6 +178,13 @@ kind: Deployment
 metadata:
   name: prod-example-app
   namespace: prod
+  labels:
+    app.kubernetes.io/name: example-app
+    app.kubernetes.io/instance: prod-example-app-v1
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: application-core
+    app.kubernetes.io/part-of: cymbalstore
+    app.kubernetes.io/managed-by: kubectl
 spec:
   replicas: 2
   selector:
@@ -185,6 +207,12 @@ kind: Service
 metadata:
   name: prod-example-app-svc
   namespace: prod
+  labels:
+    app.kubernetes.io/name: example-app
+    app.kubernetes.io/instance: prod-example-app-svc
+    app.kubernetes.io/component: api-service
+    app.kubernetes.io/part-of: cymbalstore
+    app.kubernetes.io/managed-by: kubectl
 spec:
   type: ClusterIP # Internal virtual routing ip allocation
   selector:

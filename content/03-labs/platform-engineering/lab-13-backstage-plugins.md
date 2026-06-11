@@ -85,11 +85,25 @@ kind: ServiceAccount
 metadata:
   name: backstage-k8s-reader
   namespace: default
+  labels:
+    app.kubernetes.io/name: backstage
+    app.kubernetes.io/instance: backstage-k8s-reader
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/component: service-account
+    app.kubernetes.io/part-of: backstage
+    app.kubernetes.io/managed-by: kubectl
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: backstage-k8s-reader
+  labels:
+    app.kubernetes.io/name: backstage
+    app.kubernetes.io/instance: backstage-k8s-reader
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/part-of: backstage
+    app.kubernetes.io/managed-by: kubectl
 subjects:
   - kind: ServiceAccount
     name: backstage-k8s-reader
@@ -146,6 +160,12 @@ metadata:
   labels:
     app: nginx-demo
     backstage.io/kubernetes-id: nginx-demo
+    app.kubernetes.io/name: nginx-demo
+    app.kubernetes.io/instance: nginx-demo
+    app.kubernetes.io/version: "1.25"
+    app.kubernetes.io/component: demo
+    app.kubernetes.io/part-of: backstage
+    app.kubernetes.io/managed-by: kubectl
 spec:
   replicas: 2
   selector:
@@ -172,6 +192,13 @@ kind: Service
 metadata:
   name: nginx-demo
   namespace: platform-dev
+  labels:
+    app.kubernetes.io/name: nginx-demo
+    app.kubernetes.io/instance: nginx-demo
+    app.kubernetes.io/version: "1.25"
+    app.kubernetes.io/component: demo
+    app.kubernetes.io/part-of: backstage
+    app.kubernetes.io/managed-by: kubectl
 spec:
   selector:
     app: nginx-demo
