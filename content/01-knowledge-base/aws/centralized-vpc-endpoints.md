@@ -5,7 +5,10 @@
 | Section | Topic | Description |
 | :---: | :--- | :--- |
 | **01** | [Why Centralize VPC Endpoints?](#1-why-centralize-vpc-endpoints) | The cost and operational problem that centralization solves. |
-| **02** | [Endpoint Types: Gateway vs Interface](#2-endpoint-types-gateway-vs-interface) | Core distinctions, routing mechanics, and where each type lives in the architecture. |
+| **02** | [The Three Endpoint Types](#2-the-three-endpoint-types) | Gateway, Interface (PrivateLink), and Gateway Load Balancer — core distinctions, routing mechanics, and where each type belongs. |
+| **02a** | [Gateway Endpoints: S3 & DynamoDB](#2a-gateway-endpoints-s3--dynamodb) | Prefix list mechanics, route propagation limits, bucket policies with sourceVpce, and why they cannot be centralized. |
+| **02b** | [Interface Endpoints: AWS PrivateLink](#2b-interface-endpoints-aws-privatelink) | ENI mechanics, pricing breakdown, private DNS generation, and the PHZ association pattern for cross-account access. |
+| **02c** | [Gateway Load Balancer Endpoints](#2c-gateway-load-balancer-endpoints) | GWLB endpoint internals, appliance integration models, traffic flow for security inspection, and centralized vs distributed deployment. |
 | **03** | [The Centralized Hub Architecture](#3-the-centralized-hub-architecture) | Shared-services VPC design, TGW attachment, and traffic flow. |
 | **04** | [Private DNS & PHZ Sharing](#4-private-dns-phz-sharing) | How Route 53 Private Hosted Zones are associated across accounts, and why it is non-trivial. |
 | **05** | [DNS Resolution Flow End-to-End](#5-dns-resolution-flow-end-to-end) | Step-by-step DNS lookup path from a spoke workload to the endpoint. |
@@ -27,41 +30,237 @@ The trade-off is added architectural complexity — particularly around DNS — 
 
 ---
 
-## 2. Endpoint Types: Gateway vs Interface
+## 2. The Three Endpoint Types
 
-The two endpoint types behave fundamentally differently at the network layer, and understanding that distinction is essential before designing a centralized model.
+AWS VPC Endpoints come in three distinct families: **Gateway**, **Interface (PrivateLink)**, and **Gateway Load Balancer**. Each operates at a different layer of the network stack and suits a different category of use case. A well-architected Landing Zone uses all three in combination.
 
-### Gateway Endpoints
+| Property | Gateway Endpoint | Interface Endpoint | GWLB Endpoint |
+| :--- | :--- | :--- | :--- |
+| **Services** | S3, DynamoDB only | 100+ AWS services + Marketplace | Third-party appliances (firewall, IDS/IPS) |
+| **Billing** | Free | Per-AZ hourly + per-GB data | Per-GWLB-hour + per-GB appliance data |
+| **Network layer** | L3 (route table prefix list) | L4 (ENI with private IP) | L3 (GENEVE tunnel to appliances) |
+| **DNS override** | No | Yes (auto-generated PHZ) | No |
+| **Centralizable** | No — per-VPC only | Yes — via PHZ sharing + TGW | Yes — via TGW + GWLB endpoints |
 
-Gateway Endpoints are a routing construct, not a network interface. They work by injecting a prefix list entry into the route table of the VPC that owns the endpoint. When a resource in that VPC sends traffic to `s3.amazonaws.com` or DynamoDB, the route table matches the prefix list and forwards the packet to the endpoint gateway — bypassing the internet gateway entirely.
+---
+
+## 2a. Gateway Endpoints: S3 & DynamoDB
+
+### How They Work
+
+Gateway Endpoints are not a network interface. They are a **routing construct** — a prefix list injected into the VPC route table. When a resource in that VPC resolves `s3.amazonaws.com` (or DynamoDB), it gets a public IP. The packet is routed according to the VPC's route table, which now has a prefix list entry pointing to the gateway endpoint. The packet is intercepted by AWS's internal fabric before it reaches the internet gateway and forwarded to the S3 or DynamoDB service endpoint.
+
+```mermaid
+flowchart LR
+    subgraph VPC["VPC"]
+        EC2["EC2"]
+        RT["Route Table\npl-xxxxx → gateway-endpoint"]
+        GW["Gateway Endpoint"]
+    end
+
+    IGW["Internet Gateway"]
+    S3["S3 Bucket"]
+
+    EC2 -->|"dest: S3 public IP\nroute lookup → prefix match"| RT
+    RT -->|"prefix list match"| GW
+    GW -.->|"AWS internal fabric"| S3
+    EC2 -."(bypassed)".-> IGW
+```
+
+The prefix list is specific to each service and region. When you create an S3 Gateway Endpoint in `us-east-1`, AWS injects the prefix list for S3 in that region into the VPC route table. All traffic to those S3 IP prefixes is redirected through the endpoint.
+
+### Why They Cannot Be Centralized
+
+**Transit Gateway does not propagate prefix list routes.** If you create a Gateway Endpoint in a hub VPC, the prefix list entry exists only in that hub VPC's route table. Spoke VPCs connected via TGW do not inherit the prefix list. Their route tables have no entry pointing to the hub's gateway endpoint — so traffic from spoke workloads to S3 public IPs will either exit through a NAT Gateway/IGW or fail entirely if no internet route exists.
+
+There is no architectural workaround for this. Gateway Endpoints are fundamentally non-transitive. Every VPC that needs private S3 or DynamoDB access must own its own gateway endpoint.
+
+### Cost Implication
+
+This limitation is painless: **Gateway Endpoints are free.** No hourly charge, no data processing fee. Provisioning one per spoke VPC adds zero marginal cost. The only overhead is operational — ensuring each new VPC gets gateway endpoints during account vending.
+
+### S3-Specific Patterns
+
+**Bucket policies with `aws:SourceVpce`.** Once a gateway endpoint exists in a VPC, you can restrict S3 bucket access to traffic originating through that endpoint using the `aws:SourceVpce` condition key:
+
+```json
+{
+    "Effect": "Deny",
+    "Principal": "*",
+    "Action": "s3:*",
+    "Resource": [
+        "arn:aws:s3:::my-sensitive-bucket",
+        "arn:aws:s3:::my-sensitive-bucket/*"
+    ],
+    "Condition": {
+        "StringNotEquals": {
+            "aws:SourceVpce": "vpce-xxxxx"
+        }
+    }
+}
+```
+
+This is an S3-level control, not a VPC routing control. It does not care about which VPC or account the traffic originated from — only that it transited the specified endpoint.
+
+**Gateway vs Interface for S3.** S3 can also be accessed via an Interface Endpoint (PrivateLink). The decision matrix:
+
+| Factor | Gateway Endpoint | Interface Endpoint |
+| :--- | :--- | :--- |
+| Cost | Free | ~$22/month per AZ |
+| Throughput | Up to 100 Gbps | 10 Gbps per ENI (burst to 25 Gbps) |
+| DNS | Public hostname only | Private DNS hostname available |
+| Security | Bucket policy with `aws:SourceVpce` | Endpoint policy + bucket policy |
+| On-prem access | Not supported from on-prem | Supported via PrivateLink + Direct Connect |
+| Cross-region | Same-region only | Same-region only |
+
+For most multi-account architectures, **gateway endpoints are the default for S3 and DynamoDB**. Interface Endpoints for S3 are only justified when you need private DNS hostnames or on-premises access via Direct Connect.
+
+### DynamoDB Patterns
+
+DynamoDB Gateway Endpoints work identically to S3 — same prefix list mechanism, same non-transitive limitation, same cost advantage. The `aws:SourceVpce` condition also works with DynamoDB.
+
+One important distinction: DynamoDB Accelerator (DAX) does not use gateway endpoints. DAX clusters run inside your VPC and communicate with DynamoDB over the public endpoint or through an Interface Endpoint. If you use DAX, the DAX-to-DynamoDB path still benefits from the gateway endpoint in the same VPC.
+
+---
+
+## 2b. Interface Endpoints: AWS PrivateLink
+
+### How They Work
+
+Interface Endpoints provision one or more **Elastic Network Interfaces** (ENIs) directly inside the VPC subnets where the endpoint is created. Each ENI receives a private IP address from the subnet's CIDR range. AWS's internal PrivateLink fabric connects those ENIs to the target service's backend — whether that is an AWS-managed service or a third-party service in another account.
+
+```mermaid
+flowchart TD
+    subgraph Consumer["Consumer VPC"]
+        EC2["EC2"]
+        ENI["Interface Endpoint ENI\n10.1.2.45"]
+    end
+
+    subgraph AWS["AWS PrivateLink Fabric"]
+        PL["Internal routing & encryption"]
+    end
+
+    subgraph Service["AWS Service / Endpoint Service"]
+        SVC["S3 / SSM / ECR / Marketplace"]
+    end
+
+    EC2 -->|"HTTPS to\nec2.us-east-1.amazonaws.com\n→ 10.1.2.45"| ENI
+    ENI -->|"via PrivateLink"| PL
+    PL --> SVC
+```
+
+### ENI Placement and Availability
+
+When you create an Interface Endpoint, you specify one subnet per AZ. An ENI is provisioned in each specified subnet. AWS assigns a DNS record that resolves to all ENI IPs — the order is randomized for load distribution. If an ENI becomes unhealthy, AWS removes it from DNS rotation and the remaining ENIs handle the traffic.
+
+**Multi-AZ is mandatory for production.** A single-AZ endpoint creates a single point of failure. In a centralized hub model, this failure would affect all spoke accounts.
+
+### Pricing
+
+| Component | Cost | Notes |
+| :--- | :--- | :--- |
+| Hourly charge | ~$0.01/hr per AZ per endpoint | $0.01 × 3 AZs × 730 hrs = ~$22/month/endpoint |
+| Data processing | ~$0.01/GB | Charged on data processed through the endpoint |
+| Typical 20-endpoint hub | ~$440/month | 20 endpoints × $22/month, before data charges |
+
+### DNS Behavior Deep Dive
+
+When you create an Interface Endpoint with **private DNS enabled**, AWS creates a **Private Hosted Zone** (PHZ) for that endpoint's service DNS name. For example, an SSM Interface Endpoint produces a PHZ for `ssm.us-east-1.amazonaws.com` containing A records pointing to the ENI IPs. This PHZ is automatically associated with the VPC that owns the endpoint.
+
+Resources inside that VPC resolve the service hostname to the ENI private IPs. Resources outside that VPC — including spoke VPCs connected over TGW — resolve the same hostname to the **public** IP of the service because they are not associated with the PHZ.
+
+This DNS split is the central challenge of centralized Interface Endpoints. The solution is **cross-account PHZ association** or **Route 53 Resolver forwarding rules**, both discussed in Sections 4-6.
+
+### Cross-Account Sharing Model
+
+Interface Endpoints are directly shareable only via the endpoint's private DNS mechanism. The `vpce` DNS name (e.g., `vpce-xxxxx-ec2.us-east-1.vpce.amazonaws.com`) is resolvable from any network that can reach the ENI IPs — but that is rarely what applications use. Applications use the standard service DNS name (`ec2.us-east-1.amazonaws.com`), which requires the PHZ association.
+
+The sharing pattern is:
+1. Hub VPC owns the Interface Endpoints and their PHZs.
+2. Each spoke VPC gets the hub's PHZs associated (cross-account).
+3. Spoke workloads resolve service DNS names to ENI IPs.
+4. Routing over TGW delivers traffic to the ENI IPs.
+
+---
+
+## 2c. Gateway Load Balancer Endpoints
+
+### How They Work
+
+Gateway Load Balancer Endpoints are a routing construct that intercepts traffic and tunnels it to a Gateway Load Balancer (GWLB) using **GENEVE encapsulation**. Unlike Interface Endpoints which terminate traffic at the ENI, GWLB endpoints are transparent — they forward packets to backend appliances (firewalls, IDS/IPS) that inspect and return the traffic.
+
+The traffic flow has three stages:
+
+1. **Interception.** A route table entry (prefix list) in the source VPC matches the destination (e.g., `0.0.0.0/0` for internet-bound traffic, or a specific CIDR) and points to the GWLB endpoint as the next hop.
+2. **Encapsulation.** The GWLB endpoint wraps the original packet in a GENEVE tunnel and sends it to the Gateway Load Balancer.
+3. **Inspection and return.** The GWLB distributes traffic to registered appliances. After inspection, the appliance returns the packet to the GWLB, which decapsulates and forwards it to the original destination.
+
+```mermaid
+flowchart TD
+    subgraph Source["Source VPC / Spoke"]
+        SRC["Workload"]
+        RT["Route Table\n0.0.0.0/0 → gwlb-endpoint"]
+        GWLBE["GWLB Endpoint"]
+    end
+
+    subgraph Inspection["Security VPC"]
+        GWLB["Gateway Load Balancer"]
+        FW1["Firewall Appliance\n(AZ-a)"]
+        FW2["Firewall Appliance\n(AZ-b)"]
+        GWLB --> FW1
+        GWLB --> FW2
+    end
+
+    DEST["Internet / On-premises / Other VPC"]
+
+    SRC -->|"packet"| RT
+    RT --> GWLBE
+    GWLBE -->|"GENEVE tunnel"| GWLB
+    FW1 -->|"return traffic"| GWLB
+    GWLB -->|"decapsulate"| DEST
+```
+
+### Key Properties
 
 | Property | Detail |
 | :--- | :--- |
-| Supported services | Amazon S3 and DynamoDB only |
-| Billing | No hourly or data-processing charge |
-| DNS behaviour | No private DNS override; uses public endpoint hostnames |
-| Routing mechanism | Prefix list injected into VPC route tables |
-| Cross-account sharing | Not directly shareable; must be owned by the VPC using them |
+| **Supported services** | Third-party appliances (Fortinet, Palo Alto, Check Point, Cisco, etc.) |
+| **Billing** | Per-GWLB-hour + data processing through GWLB |
+| **Encapsulation** | GENEVE (Generic Network Virtualization Encapsulation) — port 6081 |
+| **DNS behaviour** | No DNS component — purely a routing mechanism |
+| **Routing mechanism** | Prefix list in source VPC route table points to GWLB endpoint |
+| **Cross-account sharing** | GWLB endpoint can be in one account, appliances in another |
+| **Transparency** | Traffic is routed through, not terminated at, the endpoint |
 
-This last point is critical: **Gateway Endpoints cannot be centralized in the same way as Interface Endpoints.** Because the routing mechanism is a route table entry local to the owning VPC, a Gateway Endpoint in a shared-services hub VPC does not extend its prefix list routes to spoke VPCs connected over Transit Gateway. TGW does not propagate prefix list routes.
+### Use Cases
 
-The practical outcome is that every spoke VPC should provision its own S3 and DynamoDB Gateway Endpoints. These are free, so there is no cost justification to centralize them — and no clean architectural path to do so. The centralization effort is therefore concentrated entirely on Interface Endpoints.
-
-### Interface Endpoints (AWS PrivateLink)
-
-Interface Endpoints provision one or more Elastic Network Interfaces (ENIs) directly inside the subnets of the VPC where the endpoint is created. Each ENI gets a private IP address within that subnet's CIDR range. Service traffic is routed to these ENIs using standard VPC routing and DNS.
-
-| Property | Detail |
+| Use Case | Description |
 | :--- | :--- |
-| Supported services | Most AWS services and AWS Marketplace third-party services |
-| Billing | Per-AZ hourly charge + per-GB data processing fee |
-| DNS behaviour | Generates a private DNS hostname that resolves to the ENI IPs |
-| Routing mechanism | Standard VPC routing to ENI IPs; no route table injection |
-| Cross-account sharing | ENI IPs are routable over TGW; DNS is the challenge |
+| **Internet egress inspection** | Centralize outbound traffic from spoke VPCs through a security VPC with firewall appliances before reaching the internet. |
+| **Transit VPC inspection** | Inspect traffic between spoke VPCs (east-west) using a central inspection VPC. |
+| **Inbound traffic inspection** | Filter traffic entering the AWS environment from Direct Connect or VPN before it reaches application VPCs. |
+| **Traffic mirroring** | Send copies of traffic to monitoring appliances for analysis (IDS). |
 
-Because Interface Endpoint ENIs have regular private IP addresses, traffic from a spoke VPC can reach them over a Transit Gateway attachment just like any other cross-VPC traffic — provided the routing and security groups are configured correctly. The architectural challenge is not routing; it is **DNS**. The private hostnames that AWS generates for Interface Endpoints (e.g., `ec2.us-east-1.vpce.amazonaws.com`) resolve to the ENI IPs only when queried from within the VPC that owns the endpoint, or from a VPC that has the corresponding Private Hosted Zone associated.
+### Centralized vs Distributed GWLB Endpoints
 
-This is the problem that the PHZ sharing pattern solves.
+| Model | Traffic Flow | Pros | Cons |
+| :--- | :--- | :--- | :--- |
+| **Centralized (inspection VPC)** | Spokes → TGW → Security VPC → GWLB → appliances → internet | Single policy point, cost consolidation, simpler appliance licensing | TGW hop adds latency, single blast radius for inspection failure |
+| **Distributed (per spoke GWLB)** | Spoke → GWLB endpoint in same VPC → GWLB in security VPC → appliances | Lower latency, isolated blast radius | More GWLB endpoints to manage, policy must be coordinated |
+
+For most Landing Zone designs, the **centralized model** is preferred because the cost and operational benefits of a single security policy domain outweigh the latency and blast-radius trade-offs. The GWLB endpoint itself is a lightweight construct — the heavy lifting is in the appliances and the GENEVE tunnel terminating at the GWLB.
+
+### Relationship to the Centralized Endpoint Hub
+
+GWLB Endpoints live in the same family of VPC endpoints but serve a fundamentally different purpose. Interface Endpoints give you private access to AWS services. Gateway Endpoints give you free access to S3 and DynamoDB. GWLB Endpoints give you **traffic inspection and security controls** from third-party appliances.
+
+In a centralized hub architecture:
+- The **hub VPC** hosts Interface Endpoints for AWS service access.
+- A separate **security/inspection VPC** (or the same hub, if policy allows) hosts the GWLB and appliances.
+- Both use TGW attachments to connect to spoke VPCs.
+
+> [!TIP]
+> For a complete deep dive on GWLB-based egress inspection, including appliance integration patterns, routing design, and failure mode runbooks, see the dedicated guide: [Egress Inspection with AWS Gateway Load Balancer](egress-inspection-gwlb.md).
 
 ---
 
@@ -73,7 +272,9 @@ The shared-services VPC acts as the endpoint hub. It is a purpose-built VPC insi
 
 The hub VPC is typically small in CIDR — there are no workloads running here, only endpoint ENIs and resolver infrastructure. A `/24` or `/25` per AZ dedicated to endpoint subnets is common. The subnets hosting endpoint ENIs should be isolated from internet-facing routing and protected by security groups that restrict inbound traffic to the RFC1918 CIDR ranges of your spoke VPCs.
 
-Every Interface Endpoint is deployed across all active Availability Zones in the hub VPC. This is non-negotiable for a shared infrastructure layer: a single-AZ endpoint becomes a blast-radius risk for all downstream spoke accounts during AZ-level impairments.
+In architectures that also need traffic inspection, a separate **security VPC** or the same hub VPC hosts Gateway Load Balancer endpoints and the associated appliance targets. The routing design for GWLB traffic is distinct — it uses prefix list entries (not ENI IPs) and GENEVE encapsulation — so the subnet and security group design must account for the additional traffic flows.
+
+Every Interface Endpoint is deployed across all active Availability Zones in the hub VPC. This is non-negotiable for a shared infrastructure layer: a single-AZ endpoint becomes a blast-radius risk for all downstream spoke accounts during AZ-level impairments. The same applies to GWLB — the Gateway Load Balancer itself must be multi-AZ, and appliances must be deployed in at least two AZs for the inspection path to survive an AZ failure.
 
 ### Transit Gateway Attachment
 
@@ -81,7 +282,7 @@ The hub VPC attaches to the Transit Gateway like any other spoke. What distingui
 
 The key routing requirement: spoke VPCs must have a route for the hub VPC's endpoint subnet CIDRs pointing at the TGW attachment. This is usually achieved via propagation from the hub VPC attachment into the spoke route tables, or via static routes in the TGW route table with return routes pushed to spoke VPCs.
 
-### Traffic Flow (Non-DNS Path)
+### Traffic Flow — Interface Endpoint (AWS Service Access)
 
 Once DNS resolution is working correctly (covered in the next section), the actual data-plane flow for a spoke workload calling, for example, the SSM service is:
 
@@ -120,6 +321,48 @@ flowchart LR
     APP -->|"DNS query\nssm.*.amazonaws.com"| RESOLVER
     RESOLVER -->|"returns 10.1.2.45"| APP
 ```
+
+### Traffic Flow — Gateway Load Balancer Endpoint (Security Inspection)
+
+When the hub also provides traffic inspection via GWLB, the path differs fundamentally — it is a routing-based intercept rather than a DNS-based destination:
+
+1. Workload in Spoke VPC sends a packet destined for the internet (e.g., `0.0.0.0/0`) or a specific inspection CIDR.
+2. Spoke VPC route table matches the destination and forwards to TGW attachment.
+3. TGW route table routes the traffic to the security VPC attachment.
+4. Security VPC route table has a prefix list entry for the GWLB endpoint — traffic is intercepted.
+5. GWLB endpoint encapsulates the packet in GENEVE and forwards to the Gateway Load Balancer.
+6. GWLB distributes to a registered appliance (firewall) for inspection.
+7. After inspection, the appliance returns the packet to GWLB, which decapsulates and forwards to the internet or the final destination.
+
+```mermaid
+flowchart LR
+    subgraph Spoke["Spoke VPC (App Account)"]
+        APP["Workload\nEC2 / Pod"]
+    end
+
+    subgraph TGW["Transit Gateway"]
+        RT_TGW["Route Tables\n0.0.0.0/0 → Security VPC"]
+    end
+
+    subgraph Sec["Security VPC"]
+        direction TB
+        GWLBE["GWLB Endpoint\n(prefix list target)"]
+        GWLB["Gateway Load Balancer"]
+        FW["Firewall\nAppliances"]
+        GWLBE -->|"GENEVE:6081"| GWLB
+        GWLB --> FW
+    end
+
+    INTERNET["Internet"]
+
+    APP -->|"dest: internet\nTGW route"| RT_TGW
+    RT_TGW -->|"0.0.0.0/0 → Sec VPC"| GWLBE
+    GWLBE --> GWLB
+    FW -->|"allowed traffic"| GWLB
+    GWLB -->|"decapsulate"| INTERNET
+```
+
+This is a fundamentally different traffic pattern from Interface Endpoints. Interface Endpoints are **destination-based** — you reach a specific service by its DNS name resolving to an ENI IP. GWLB Endpoints are **intercept-based** — traffic is redirected based on route table prefix list matches, regardless of the final destination.
 
 ---
 
@@ -271,11 +514,15 @@ Avoid using overly broad security groups that accept traffic from `0.0.0.0/0` �
 
 A centralized endpoint hub is shared infrastructure. Its availability envelope directly determines whether spoke workloads can reach AWS services privately. The mitigation is straightforward: deploy endpoints across all AZs and ensure TGW attachments have multi-AZ coverage. Route 53 Resolver Inbound endpoints similarly need multi-AZ deployment.
 
-Design for the case where the hub VPC itself becomes unreachable — for example, if the TGW route table is misconfigured or if a hub VPC security group change inadvertently blocks traffic. In that scenario, spoke workloads will fail to reach endpoints even if the endpoints themselves are healthy. Monitoring should cover TGW attachment state, Resolver endpoint health, and endpoint ENI reachability.
+For GWLB-based inspection, availability requirements are more stringent because the inspection path is stateful. The Gateway Load Balancer must be deployed in at least two AZs, with appliances in each AZ configured in an **active-active** pair. A single-AZ GWLB deployment causes a full traffic outage if that AZ fails — every spoke that routes through the security VPC loses connectivity.
+
+Design for the case where the hub VPC itself becomes unreachable — for example, if the TGW route table is misconfigured or if a hub VPC security group change inadvertently blocks traffic. In that scenario, spoke workloads will fail to reach endpoints even if the endpoints themselves are healthy. Monitoring should cover TGW attachment state, Resolver endpoint health, GWLB appliance health, and endpoint ENI reachability.
 
 ### Blast Radius
 
 A misconfiguration in the hub VPC — an endpoint policy that is too restrictive, a PHZ record that resolves to wrong IPs, or a security group rule update — will affect all spoke accounts simultaneously. Change management for hub VPC configurations should be gated behind a review and approval process with mandatory staging deployment in a non-production environment.
+
+For GWLB configurations, the blast radius includes appliance misconfigurations that drop or misroute traffic. A firewall rule change intended for a single spoke account that accidentally blocks all traffic affects every account routing through the security VPC. Testing GWLB routing changes in a non-production TGW route table or a staging security VPC is essential.
 
 ### Latency
 
