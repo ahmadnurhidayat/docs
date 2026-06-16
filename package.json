@@ -2,6 +2,7 @@
   "name": "docs",
   "type": "module",
   "version": "1.0.0",
+  "packageManager": "pnpm@9.15.9",
   "scripts": {
     "dev": "astro dev",
     "start": "astro dev",
@@ -19,10 +20,10 @@
     "typescript": "^6.0.3",
     "unist-util-visit": "^5.0.0"
   },
-  "overrides": {
-    "esbuild": "^0.28.1",
-    "yaml-language-server": {
-      "yaml": "^2.9.0"
+  "pnpm": {
+    "overrides": {
+      "esbuild": "^0.28.1",
+      "yaml-language-server>yaml": "^2.9.0"
     }
   }
 }
