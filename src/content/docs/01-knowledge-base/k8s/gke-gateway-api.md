@@ -12,8 +12,9 @@
 | **06** | [GCPGatewayPolicy — Policy Binding](#6-gcpgatewaypolicy--policy-binding) | Associating backend and health check policies at the gateway level. |
 | **07** | [HealthCheckPolicy — Liveness Probes](#7-healthcheckpolicy--liveness-probes) | HTTP and TCP health check configuration. |
 | **08** | [Kong Internal Gateway](#8-kong-internal-gateway) | Internal routing with Kong and path stripping. |
-| **09** | [Migration Playbook](#9-migration-playbook) | Step-by-step guide from Ingress to Gateway API. |
-| **10** | [Lessons Learned](#10-lessons-learned) | Real-world pitfalls and production insights. |
+| **09** | [Canary Deployments](#9-canary-deployments) | Weighted routing and header-based canary with Gateway API. |
+| **10** | [Migration Playbook](#10-migration-playbook) | Step-by-step guide from Ingress to Gateway API. |
+| **11** | [Lessons Learned](#11-lessons-learned) | Real-world pitfalls and production insights. |
 
 ---
 
@@ -438,7 +439,174 @@ graph LR
 
 ---
 
-## 9. Migration Playbook
+## 9. Canary Deployments
+
+Gateway API natively supports canary deployments through weighted `backendRefs` in HTTPRoute. No external tools like Flagger or Argo Rollouts required.
+
+### Weighted Traffic Split
+
+Route 90% of traffic to the stable version and 10% to the canary:
+
+```yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: service-a-httproute
+  namespace: service-a-ns
+  labels:
+    app: service-a-httproute
+    app.kubernetes.io/name: service-a-httproute
+    app.kubernetes.io/part-of: example
+    app.kubernetes.io/component: gateway
+spec:
+  parentRefs:
+    - name: example-gateway
+      namespace: gateway-api
+      sectionName: https
+  hostnames:
+    - "*.example.id"
+  rules:
+    - matches:
+      - path:
+          type: PathPrefix
+          value: /
+      backendRefs:
+        - name: service-a-svc
+          port: 80
+          weight: 90
+        - name: service-a-canary-svc
+          port: 80
+          weight: 10
+```
+
+### Header-Based Routing (QA Canary)
+
+For QA testing, route traffic based on a custom header. Requests with `X-QA-Canary: true` go to the canary; everything else goes to stable:
+
+```yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: service-a-httproute
+  namespace: service-a-ns
+  labels:
+    app: service-a-httproute
+    app.kubernetes.io/name: service-a-httproute
+    app.kubernetes.io/part-of: example
+    app.kubernetes.io/component: gateway
+spec:
+  parentRefs:
+    - name: example-gateway
+      namespace: gateway-api
+      sectionName: https
+  hostnames:
+    - "*.example.id"
+  rules:
+    # Rule 1: Header match -> canary
+    - matches:
+        - headers:
+            - name: X-QA-Canary
+              value: "true"
+      backendRefs:
+        - name: service-a-canary-svc
+          port: 80
+          weight: 100
+    # Rule 2: Default -> stable
+    - matches:
+        - path:
+            type: PathPrefix
+            value: "/"
+      backendRefs:
+        - name: service-a-svc
+          port: 80
+          weight: 100
+```
+
+### Canary Strategy Comparison
+
+| Strategy | Use Case | How It Works |
+| :--- | :--- | :--- |
+| **Weighted split** | Gradual rollout | Fixed percentage across all requests |
+| **Header-based** | QA/staging validation | Specific users hit canary via header |
+| **Path-based** | Versioned APIs | `/v2/*` routes to canary |
+| **Combined** | Full control | Weight + header + path together |
+
+### Canary Promotion Playbook
+
+```mermaid
+graph LR
+    A["Deploy canary\nsvc"] --> B["Set weight\n90/10"]
+    B --> C{"Monitor\nmetrics"}
+    C -->|"Healthy"| D["Increase weight\n50/50"]
+    C -->|"Errors"| E["Rollback\n100/0"]
+    D --> F{"Monitor\nmetrics"}
+    F -->|"Healthy"| G["Promote\n100/0"]
+    F -->|"Errors"| E
+    G --> H["Delete canary\nsvc"]
+```
+
+### Step 1: Deploy Canary
+
+```bash
+# Deploy canary version
+kubectl apply -f service-a-canary-deployment.yaml -n service-a-ns
+
+# Deploy canary service
+kubectl apply -f service-a-canary-svc.yaml -n service-a-ns
+
+# Deploy weighted HTTPRoute (90/10)
+kubectl apply -f service-a-canary-httproute.yaml -n service-a-ns
+```
+
+### Step 2: Monitor
+
+```bash
+# Check canary pod health
+kubectl get pods -n service-a-ns -l version=canary
+
+# Watch canary logs
+kubectl logs -n service-a-ns -l version=canary -f
+
+# Check Gateway routing
+gcloud container gateway-api list --region=[REGION]
+```
+
+### Step 3: Promote or Rollback
+
+```bash
+# Promote: shift all traffic to canary (now stable)
+kubectl patch httproute service-a-httproute -n service-a-ns --type merge -p '
+{
+  "spec": {
+    "rules": [{
+      "backendRefs": [
+        {"name": "service-a-canary-svc", "port": 80, "weight": 100}
+      ]
+    }]
+  }
+}'
+
+# Rollback: shift all traffic back to stable
+kubectl patch httproute service-a-httproute -n service-a-ns --type merge -p '
+{
+  "spec": {
+    "rules": [{
+      "backendRefs": [
+        {"name": "service-a-svc", "port": 80, "weight": 100}
+      ]
+    }]
+  }
+}'
+```
+
+### Key Observations
+
+| Observation | Detail |
+| :--- | :--- |
+| Weight is per-rule, not per-route | Multiple `backendRefs` in one rule split traffic |
+| Header match is exact | `X-QA-Canary: true` only — no prefix/regex |
+| No connection draining between shifts | Traffic shifts instantly — no graceful drain |
+| Health checks apply per backend | Canary must pass health checks to receive traffic |
 
 ### Phase 1: Preparation
 
