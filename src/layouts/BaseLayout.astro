@@ -113,14 +113,12 @@ const allEntries = await getCollection('docs');
         if (!code) return;
 
         // Strip all HTML tags (Shiki wraps each token in <span>) to get raw text
-        const raw = code.innerHTML
-          .replace(/<[^>]+>/g, '')          // remove all HTML tags
-          .replace(/&lt;/g, '<')
-          .replace(/&gt;/g, '>')
-          .replace(/&amp;/g, '&')
-          .replace(/&#39;/g, "'")
-          .replace(/&quot;/g, '"')
-          .trim();
+        // Use textarea for safe HTML entity decoding (avoids incomplete sanitization patterns)
+        const textarea = document.createElement('textarea');
+        const raw = (() => {
+          textarea.innerHTML = code.innerHTML.replace(/<[^>]+>/g, '');
+          return textarea.value;
+        })().trim();
 
         if (!raw) return;
 
