@@ -416,4 +416,3 @@ But for our use case — 50+ services, 3 environments, multiple teams, GCP-nativ
 - [Gateway API Specification](https://gateway-api.sigs.k8s.io/)
 - [GKE Gateway API vs Ingress](https://cloud.google.com/kubernetes-engine/docs/how-to/gateway-api)
 - [Kong Gateway API Integration](https://docs.konghq.com/gateway/3.x/key-concepts/gateway-api/)
-- [Migrating from Ingress to Gateway API at Kitabisa](https://medium.com/inside-kitabisa/migrating-from-kubernetes-ingress-to-gateway-api-at-kitabisa-why-we-made-the-switch-9b68754257b6)
