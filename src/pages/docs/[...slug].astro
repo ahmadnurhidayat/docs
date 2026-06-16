@@ -1,5 +1,5 @@
 ---
-import { getCollection } from 'astro:content';
+import { getCollection, render } from 'astro:content';
 import type { CollectionEntry } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import CVLayout from '../../layouts/CVLayout.astro';
@@ -11,7 +11,7 @@ import { buildNavTree, flattenTree, findPrevNext } from '../../utils/nav-tree';
 export async function getStaticPaths() {
   const entries = await getCollection('docs');
   return entries.map(entry => ({
-    params: { slug: entry.slug },
+    params: { slug: entry.id },
     props: { entry },
   }));
 }
@@ -21,17 +21,17 @@ interface Props {
 }
 
 const { entry } = Astro.props;
-const { Content, headings } = await entry.render();
+const { Content, headings } = await render(entry);
 
 // Determine if this is a CV page
-const isCV = entry.slug.startsWith('99-cv');
+const isCV = entry.id.startsWith('99-cv');
 const Layout = isCV ? CVLayout : BaseLayout;
 
 // Build navigation tree for prev/next
 const allEntries = await getCollection('docs');
 const navTree = buildNavTree(allEntries);
 const flatList = flattenTree(navTree);
-const { prev, next } = findPrevNext(flatList, entry.slug);
+const { prev, next } = findPrevNext(flatList, entry.id);
 
 // Extract title
 const title = entry.data.title ?? headings.find(h => h.depth === 1)?.text ?? 'Document';
@@ -41,9 +41,9 @@ const description = entry.data.description ?? `${title} — docs`;
 const tocHeadings = headings.filter(h => h.depth >= 2 && h.depth <= 3);
 ---
 
-<Layout title={title} description={description} slug={entry.slug} isCV={isCV}>
+<Layout title={title} description={description} slug={entry.id} isCV={isCV}>
   <div class="doc-header">
-    <Breadcrumbs slug={entry.slug} />
+    <Breadcrumbs slug={entry.id} />
   </div>
   
   <div class="doc-layout">
