@@ -46,7 +46,7 @@ const categories = [
 
 // Count docs per category
 categories.forEach(cat => {
-  const count = allEntries.filter(entry => entry.slug.startsWith(cat.id)).length;
+  const count = allEntries.filter(entry => entry.id.startsWith(cat.id)).length;
   (cat as any).count = count;
 });
 ---

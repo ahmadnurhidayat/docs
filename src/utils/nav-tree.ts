@@ -9,11 +9,6 @@ export interface NavNode {
     title?: string;
 }
 
-function inferTitleFromBody(body: string): string | undefined {
-    const match = body.match(/^#\s+(.+)$/m);
-    return match ? match[1].trim() : undefined;
-}
-
 function getDisplayName(filename: string): string {
     return filename.replace(/\.md$/, '');
 }
@@ -40,10 +35,10 @@ function insertNode(
 
     if (rest.length === 0) {
         // This is a file
-        const title = entry.data.title ?? inferTitleFromBody(entry.body ?? '');
+        const title = entry.data.title ?? undefined;
         root.push({
             name: getDisplayName(first),
-            slug: entry.slug,
+            slug: entry.id,
             type: 'file',
             depth,
             title,
@@ -71,7 +66,7 @@ export function buildNavTree(entries: CollectionEntry<'docs'>[]): NavNode[] {
     const root: NavNode[] = [];
 
     for (const entry of entries) {
-        const parts = entry.slug.split('/');
+        const parts = entry.id.split('/');
         insertNode(root, parts, entry, 0);
     }
 
