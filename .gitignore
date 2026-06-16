@@ -38,6 +38,5 @@ Thumbs.db
 # Build artifacts
 *.tsbuildinfo
 
-# Package manager locks (keep npm, ignore others)
-pnpm-lock.yaml
+# Package manager locks
 yarn.lock
