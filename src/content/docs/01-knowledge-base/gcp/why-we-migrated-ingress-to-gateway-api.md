@@ -77,9 +77,9 @@ graph LR
     cp --> sp2
     cp --> sp3
 
-    style sp1 fill:#ffcccc
-    style sp2 fill:#ffcccc
-    style sp3 fill:#ffcccc
+    style sp1 fill
+    style sp2 fill
+    style sp3 fill
 ```
 
 ### Envoy Gateway — Promising but Unmanaged
@@ -110,8 +110,8 @@ graph TB
     gw --> hc
     gw --> gp
 
-    style gw fill:#d4edda
-    style hr fill:#d4edda
+    style gw fill:
+    style hr fill:
 ```
 
 ---
