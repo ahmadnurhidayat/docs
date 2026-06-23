@@ -105,30 +105,30 @@ graph TB
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: emqx-app-chat
+  name: emqx-cluster
   namespace: infrastructure
   labels:
-    app: emqx-app-chat
+    app: emqx-cluster
     env: production
     team: infrastructure
-    app.kubernetes.io/name: emqx-app-chat
-    app.kubernetes.io/instance: emqx-app-chat
+    app.kubernetes.io/name: emqx-cluster
+    app.kubernetes.io/instance: emqx-cluster
     app.kubernetes.io/component: mqttbroker
     app.kubernetes.io/part-of: example
     app.kubernetes.io/managed-by: DevOpsTeam
 spec:
   replicas: 3
-  serviceName: emqx-app-chat-headless
+  serviceName: emqx-cluster-headless
   selector:
     matchLabels:
-      app.kubernetes.io/instance: emqx-app-chat
-      app.kubernetes.io/name: emqx-app-chat
+      app.kubernetes.io/instance: emqx-cluster
+      app.kubernetes.io/name: emqx-cluster
   template:
     metadata:
       labels:
-        app: emqx-app-chat
-        app.kubernetes.io/instance: emqx-app-chat
-        app.kubernetes.io/name: emqx-app-chat
+        app: emqx-cluster
+        app.kubernetes.io/instance: emqx-cluster
+        app.kubernetes.io/name: emqx-cluster
         version: 5.8.7
     spec:
       securityContext:
@@ -150,7 +150,7 @@ spec:
             podAffinityTerm:
               labelSelector:
                 matchLabels:
-                  app.kubernetes.io/name: emqx-app-chat
+                  app.kubernetes.io/name: emqx-cluster
               topologyKey: kubernetes.io/hostname
       topologySpreadConstraints:
       - maxSkew: 1
@@ -158,9 +158,9 @@ spec:
         whenUnsatisfiable: ScheduleAnyway
         labelSelector:
           matchLabels:
-            app.kubernetes.io/name: emqx-app-chat
+            app.kubernetes.io/name: emqx-cluster
       containers:
-      - name: emqx-app-chat
+      - name: emqx-cluster
         image: emqx/emqx:5.8.5
         imagePullPolicy: IfNotPresent
         ports:
@@ -181,10 +181,10 @@ spec:
               apiVersion: v1
               fieldPath: metadata.name
         - name: EMQX_HOST
-          value: "$(POD_NAME).emqx-app-chat-headless.infrastructure.svc.cluster.local"
+          value: "$(POD_NAME).emqx-cluster-headless.infrastructure.svc.cluster.local"
         envFrom:
         - configMapRef:
-            name: emqx-app-chat-cfg
+            name: emqx-cluster-cfg
         resources:
           requests:
             cpu: 500m
@@ -216,23 +216,23 @@ spec:
           failureThreshold: 3
         volumeMounts:
         - mountPath: /opt/emqx/data
-          name: emqx-app-chat-data
+          name: emqx-cluster-data
         - mountPath: /opt/emqx/etc/acl.conf
-          name: emqx-app-chat-acl-volume
+          name: emqx-cluster-acl-volume
           subPath: acl.conf
         - mountPath: /opt/emqx/etc/default_api_key.conf
-          name: emqx-app-chat-bootstrap-api-keys
+          name: emqx-cluster-bootstrap-api-keys
           subPath: default_api_key.conf
       volumes:
-      - name: emqx-app-chat-acl-volume
+      - name: emqx-cluster-acl-volume
         configMap:
-          name: emqx-app-chat-acl-cfg
-      - name: emqx-app-chat-bootstrap-api-keys
+          name: emqx-cluster-acl-cfg
+      - name: emqx-cluster-bootstrap-api-keys
         configMap:
-          name: emqx-app-chat-bootstrap-api-keys
+          name: emqx-cluster-bootstrap-api-keys
   volumeClaimTemplates:
   - metadata:
-      name: emqx-app-chat-data
+      name: emqx-cluster-data
     spec:
       accessModes:
       - ReadWriteOnce
@@ -265,23 +265,23 @@ EMQX 5.x supports configuration via environment variables with `__` as path sepa
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: emqx-app-chat-cfg
+  name: emqx-cluster-cfg
   namespace: infrastructure
   labels:
-    app: emqx-app-chat
+    app: emqx-cluster
     env: production
     team: infrastructure
-    app.kubernetes.io/name: emqx-app-chat
-    app.kubernetes.io/instance: emqx-app-chat
+    app.kubernetes.io/name: emqx-cluster
+    app.kubernetes.io/instance: emqx-cluster
     app.kubernetes.io/component: mqttbroker
     app.kubernetes.io/part-of: example
     app.kubernetes.io/managed-by: DevOpsTeam
 data:
   # Cluster
-  EMQX_NAME: emqx-app-chat
+  EMQX_NAME: emqx-cluster
   EMQX_NODE__COOKIE: nodecookie
   EMQX_CLUSTER__DISCOVERY_STRATEGY: dns
-  EMQX_CLUSTER__DNS__NAME: emqx-app-chat-headless.infrastructure.svc.cluster.local
+  EMQX_CLUSTER__DNS__NAME: emqx-cluster-headless.infrastructure.svc.cluster.local
   EMQX_CLUSTER__DNS__RECORD_TYPE: srv
 
   # Authentication (JWT)
@@ -302,7 +302,7 @@ data:
   EMQX_AUTHORIZATION__SOURCES__2__ENABLE: "true"
   EMQX_AUTHORIZATION__SOURCES__2__TYPE: http
   EMQX_AUTHORIZATION__SOURCES__2__METHOD: post
-  EMQX_AUTHORIZATION__SOURCES__2__URL: http://chat-engine-svc/v1/emqx/check
+  EMQX_AUTHORIZATION__SOURCES__2__URL: http://backend-svc/v1/emqx/check
   EMQX_AUTHORIZATION__SOURCES__2__CONNECT_TIMEOUT: 5s
   EMQX_AUTHORIZATION__SOURCES__2__REQUEST_TIMEOUT: 5s
   EMQX_AUTHORIZATION__SOURCES__2__HEADERS__CONTENT_TYPE: application/json
@@ -311,9 +311,9 @@ data:
   # Webhook (client events)
   EMQX_RULE_ENGINE__RULES__WEBHOOK_CLIENT_EVENTS__ENABLE: "true"
   EMQX_RULE_ENGINE__RULES__WEBHOOK_CLIENT_EVENTS__SQL: 'SELECT * FROM "$events/client_connected","$events/client_disconnected"'
-  EMQX_RULE_ENGINE__RULES__WEBHOOK_CLIENT_EVENTS__ACTIONS__1: webhook:chat_webhook
+  EMQX_RULE_ENGINE__RULES__WEBHOOK_CLIENT_EVENTS__ACTIONS__1: webhook:emqx_webhook
   EMQX_BRIDGES__WEBHOOK__CHAT_WEBHOOK__ENABLE: "true"
-  EMQX_BRIDGES__WEBHOOK__CHAT_WEBHOOK__URL: http://chat-engine-svc/v1/emqx/webhook
+  EMQX_BRIDGES__WEBHOOK__CHAT_WEBHOOK__URL: http://backend-svc/v1/emqx/webhook
   EMQX_BRIDGES__WEBHOOK__CHAT_WEBHOOK__METHOD: post
   EMQX_BRIDGES__WEBHOOK__CHAT_WEBHOOK__HEADERS__CONTENT_TYPE: application/json
   EMQX_BRIDGES__WEBHOOK__CHAT_WEBHOOK__POOL_SIZE: "32"
@@ -370,7 +370,7 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: emqx-app-chat-acl-cfg
+  name: emqx-cluster-acl-cfg
   namespace: infrastructure
 data:
   acl.conf: |
@@ -395,12 +395,12 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: emqx-app-chat-bootstrap-api-keys
+  name: emqx-cluster-bootstrap-api-keys
   namespace: infrastructure
 data:
   default_api_key.conf: |
-    alfagift-emqx:YOUR_API_KEY_HERE
-    my-app:YOUR_APP_KEY_HERE
+    api-key-name:YOUR_API_KEY_HERE
+    app-name:YOUR_APP_KEY_HERE
 ```
 
 ---
@@ -413,17 +413,17 @@ data:
 apiVersion: v1
 kind: Service
 metadata:
-  name: emqx-app-chat
+  name: emqx-cluster
   namespace: infrastructure
   labels:
-    app: emqx-app-chat
-    app.kubernetes.io/name: emqx-app-chat
-    app.kubernetes.io/instance: emqx-app-chat
+    app: emqx-cluster
+    app.kubernetes.io/name: emqx-cluster
+    app.kubernetes.io/instance: emqx-cluster
     app.kubernetes.io/component: mqttbroker
 spec:
   selector:
-    app.kubernetes.io/instance: emqx-app-chat
-    app.kubernetes.io/name: emqx-app-chat
+    app.kubernetes.io/instance: emqx-cluster
+    app.kubernetes.io/name: emqx-cluster
   ports:
   - name: mqtt
     port: 1883
@@ -449,19 +449,19 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: emqx-app-chat-headless
+  name: emqx-cluster-headless
   namespace: infrastructure
   labels:
-    app: emqx-app-chat
-    app.kubernetes.io/name: emqx-app-chat
-    app.kubernetes.io/instance: emqx-app-chat
+    app: emqx-cluster
+    app.kubernetes.io/name: emqx-cluster
+    app.kubernetes.io/instance: emqx-cluster
     app.kubernetes.io/component: mqttbroker
 spec:
   clusterIP: None
   publishNotReadyAddresses: true
   selector:
-    app.kubernetes.io/instance: emqx-app-chat
-    app.kubernetes.io/name: emqx-app-chat
+    app.kubernetes.io/instance: emqx-cluster
+    app.kubernetes.io/name: emqx-cluster
   ports:
   - name: mqtt
     port: 1883
@@ -487,9 +487,9 @@ spec:
 
 | Service | Type | Purpose |
 | :--- | :--- | :--- |
-| `emqx-app-chat` | ClusterIP | Client connections, load balanced |
-| `emqx-app-chat-headless` | None (Headless) | DNS SRV records for EMQX clustering |
-| `emqx-app-chat-dashboard` | ClusterIP | Dashboard-only access |
+| `emqx-cluster` | ClusterIP | Client connections, load balanced |
+| `emqx-cluster-headless` | None (Headless) | DNS SRV records for EMQX clustering |
+| `emqx-cluster-dashboard` | ClusterIP | Dashboard-only access |
 
 ### Internal LoadBalancer (Optional)
 
@@ -499,14 +499,14 @@ For direct MQTT access from outside the cluster without Gateway API:
 apiVersion: v1
 kind: Service
 metadata:
-  name: emqx-app-chat-internal-lb
+  name: emqx-cluster-internal-lb
   namespace: infrastructure
   annotations:
     cloud.google.com/load-balancer-type: "Internal"
 spec:
   type: LoadBalancer
   selector:
-    app: emqx-app-chat
+    app: emqx-cluster
   ports:
   - name: ws
     port: 8083
@@ -528,11 +528,11 @@ spec:
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
-  name: emqx-app-chat-httproute
+  name: emqx-cluster-httproute
   namespace: infrastructure
   labels:
-    app: emqx-app-chat
-    app.kubernetes.io/name: emqx-app-chat
+    app: emqx-cluster
+    app.kubernetes.io/name: emqx-cluster
     app.kubernetes.io/component: gateway
 spec:
   parentRefs:
@@ -540,14 +540,14 @@ spec:
     namespace: gateway-api
     sectionName: https
   hostnames:
-  - wss-app-chat.example.id
+  - wss-emqx-cluster.example.id
   rules:
   - matches:
     - path:
         type: PathPrefix
         value: /
     backendRefs:
-    - name: emqx-app-chat
+    - name: emqx-cluster
       port: 8083
       weight: 100
 ```
@@ -558,10 +558,10 @@ spec:
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
-  name: emqx-app-chat-mqtt-internal-httproute
+  name: emqx-cluster-mqtt-internal-httproute
   namespace: infrastructure
   labels:
-    app: emqx-app-chat
+    app: emqx-cluster
     app.kubernetes.io/component: gateway
 spec:
   parentRefs:
@@ -569,14 +569,14 @@ spec:
     namespace: gateway-api
     sectionName: http
   hostnames:
-  - mqtt-app-chat-prod.example.internal
+  - mqtt-emqx-cluster.example.internal
   rules:
   - matches:
     - path:
         type: PathPrefix
         value: /mqtt
     backendRefs:
-    - name: emqx-app-chat
+    - name: emqx-cluster
       port: 1883
       weight: 100
 ```
@@ -587,10 +587,10 @@ spec:
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
-  name: emqx-app-chat-dashboard-internal-httproute
+  name: emqx-cluster-dashboard-internal-httproute
   namespace: infrastructure
   labels:
-    app: emqx-app-chat-dashboard
+    app: emqx-cluster-dashboard
     app.kubernetes.io/component: gateway
 spec:
   parentRefs:
@@ -598,14 +598,14 @@ spec:
     namespace: gateway-api
     sectionName: http
   hostnames:
-  - dashboard-emqx-app-chat-prod.example.internal
+  - dashboard-emqx-cluster-prod.example.internal
   rules:
   - matches:
     - path:
         type: PathPrefix
         value: /
     backendRefs:
-    - name: emqx-app-chat-dashboard
+    - name: emqx-cluster-dashboard
       port: 18083
       weight: 100
 ```
@@ -616,7 +616,7 @@ spec:
 apiVersion: networking.gke.io/v1
 kind: HealthCheckPolicy
 metadata:
-  name: emqx-app-chat-hc-policy
+  name: emqx-cluster-hc-policy
   namespace: infrastructure
 spec:
   default:
@@ -632,7 +632,7 @@ spec:
   targetRef:
     group: ""
     kind: Service
-    name: emqx-app-chat
+    name: emqx-cluster
 ```
 
 ### GCPBackendPolicy
@@ -641,7 +641,7 @@ spec:
 apiVersion: networking.gke.io/v1
 kind: GCPBackendPolicy
 metadata:
-  name: emqx-app-chat-backend-policy
+  name: emqx-cluster-backend-policy
   namespace: infrastructure
 spec:
   default:
@@ -649,7 +649,7 @@ spec:
   targetRef:
     group: ""
     kind: Service
-    name: emqx-app-chat
+    name: emqx-cluster
 ```
 
 ### Traffic Flow
@@ -682,7 +682,7 @@ sequenceDiagram
 
 ```mermaid
 sequenceDiagram
-    participant Client as Toko Sapa Client
+    participant Client as App Client
     participant Auth as Auth Service
     participant EMQX as EMQX Broker
 
@@ -706,7 +706,7 @@ sequenceDiagram
 ### Webhook Authorization
 
 ```yaml
-EMQX_AUTHORIZATION__SOURCES__2__URL: http://chat-engine-svc/v1/emqx/check
+EMQX_AUTHORIZATION__SOURCES__2__URL: http://backend-svc/v1/emqx/check
 EMQX_AUTHORIZATION__SOURCES__2__BODY: |
   {
     "username": "${username}",
@@ -722,7 +722,7 @@ EMQX_AUTHORIZATION__SOURCES__2__BODY: |
 ```yaml
 EMQX_RULE_ENGINE__RULES__WEBHOOK_CLIENT_EVENTS__SQL: |
   SELECT * FROM "$events/client_connected","$events/client_disconnected"
-EMQX_RULE_ENGINE__RULES__WEBHOOK_CLIENT_EVENTS__ACTIONS__1: webhook:chat_webhook
+EMQX_RULE_ENGINE__RULES__WEBHOOK_CLIENT_EVENTS__ACTIONS__1: webhook:emqx_webhook
 ```
 
 ---
@@ -735,13 +735,13 @@ EMQX_RULE_ENGINE__RULES__WEBHOOK_CLIENT_EVENTS__ACTIONS__1: webhook:chat_webhook
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: emqx-app-chat-hpa
+  name: emqx-cluster-hpa
   namespace: infrastructure
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: StatefulSet
-    name: emqx-app-chat
+    name: emqx-cluster
   minReplicas: 3
   maxReplicas: 3
   metrics:
