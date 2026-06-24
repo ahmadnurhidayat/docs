@@ -33,7 +33,7 @@ jobs:
 
       - name: TruffleHog OSS Scan
         id: scan
-        uses: trufflesecurity/trufflehog@v3.95.5
+        uses: trufflesecurity/trufflehog@v3.95.6
         with:
           base: ${{ github.event.repository.default_branch }}
           head: HEAD
