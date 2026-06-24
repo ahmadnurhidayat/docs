@@ -1,18 +1,53 @@
-# Split-Horizon DNS Forwarding Guide (BIND9, dnsmasq, and Unbound)
+# Split-Horizon DNS Forwarding Guide (BIND9, dnsmasq, Unbound)
 
-Split-horizon DNS (also known as split-view or split-brain DNS) is an architectural pattern where a DNS resolver provides structurally distinct resolution answers depending on the originating request network, sub-domain pattern, or target zone boundaries. 
+## Table of Contents
 
-This guide implements a **purely conditional forward-only** Split-Horizon design. Instead of acting as an authoritative source hosting local zone files, the server serves as an intelligent edge forwarder, parsing inbound namespaces and proxying traffic to isolated upstream resolvers.
+| Section | Topic | Description |
+| :---: | :--- | :--- |
+| **01** | [Why Split-Horizon DNS](#1-why-split-horizon-dns) | Different DNS answers for internal vs external clients. |
+| **02** | [Architecture](#2-architecture) | Forward-only split-horizon design pattern. |
+| **03** | [BIND9 Implementation](#3-bind9-implementation) | Enterprise-grade conditional forwarding. |
+| **04** | [dnsmasq Implementation](#4-dnsmasq-implementation) | Lightweight edge forwarding. |
+| **05** | [Unbound Implementation](#5-unbound-implementation) | High-performance hardened resolver. |
+| **06** | [Verification & Troubleshooting](#6-verification--troubleshooting) | Testing, logging, and common issues. |
+| **07** | [Best Practices](#7-best-practices) | Security hardening, caching, and production tips. |
+| **08** | [Selection Matrix](#8-selection-matrix) | Choosing the right DNS forwarder. |
 
 ---
 
-## 1. Architectural Strategy & Scenario
+## 1. Why Split-Horizon DNS
 
-### 1.2 Namespace Routing Parameters
-The design targets a centralized, resilient split routing model using the domain blueprint `orbitvault.com`:
+Split-horizon DNS (also called split-view or split-brain DNS) serves different DNS records depending on where the query comes from. Internal clients get private IPs; external clients get public IPs. This is fundamental for hybrid cloud architectures, VPN setups, and any environment where the same hostname needs to resolve differently inside and outside the network.
 
-* **Internal Routing Layer:** Any query targeting `*.internal.orbitvault.com` must bypass public lookups and route entirely to the private corporate network namespaces at `10.0.0.1` and `10.0.0.2`.
-* **Public Routing Layer:** Any standard corporate query targeting `*.orbitvault.com` (omitting the `.internal` boundary) or any general internet zone lookup must route out to public DNS resolvers (`8.8.8.8` and `1.1.1.1`).
+### Common Use Cases
+
+| Scenario | Why Split-Horizon |
+| :--- | :--- |
+| **Hybrid cloud** | Internal services resolve to private VPC IPs, external to public LB |
+| **VPN environments** | Remote offices resolve internal hostnames via private DNS |
+| **Multi-tenant clusters** | Each tenant gets isolated internal DNS zones |
+| **Development vs production** | Dev resolves to staging IPs, prod resolves to production IPs |
+| **Security isolation** | Internal service IPs never exposed to public DNS |
+
+### Forward-Only vs Authoritative
+
+| Mode | How It Works | When to Use |
+| :--- | :--- | :--- |
+| **Forward-only** | Server proxies queries to upstream resolvers, no local zone files | Simple split routing, no record hosting needed |
+| **Authoritative** | Server hosts its own zone files with different records per view | Full control over DNS records, complex multi-view setups |
+
+This guide focuses on **forward-only** mode — simpler to maintain, no zone file management, and ideal for environments that already have upstream authoritative servers.
+
+---
+
+## 2. Architecture
+
+### Scenario
+
+**Domain:** `orbitvault.com`
+
+- `*.internal.orbitvault.com` → forward to private DNS (`10.0.0.1`, `10.0.0.2`)
+- `*.orbitvault.com` (everything else) → forward to public DNS (`8.8.8.8`, `1.1.1.1`)
 
 ```mermaid
 flowchart TD
@@ -32,38 +67,45 @@ flowchart TD
     E --> G
 ```
 
+### Key Design Principles
+
+| Principle | Detail |
+| :--- | :--- |
+| **No local zone files** | Forwarder only — upstream servers hold authoritative data |
+| **Conditional routing** | Domain pattern matching determines upstream target |
+| **Defense in depth** | Private IPs never leak to public DNS queries |
+| **Observability** | Full query logging for audit and troubleshooting |
+
 ---
 
-## 2. Engine Implementations
+## 3. BIND9 Implementation
 
-### 2.1 Option A: Enterprise Topology with BIND9
-BIND9 is the industry standard for robust, highly granular corporate access structures. This forward-only implementation configures the baseline global options pool and decouples local zoning overrides.
+BIND9 is the industry standard for enterprise-grade DNS. Forward-only mode with conditional zones provides granular routing without hosting zone files.
 
-#### Global Operational Options (`/etc/bind/named.conf.options`)
+### Global Options
+
+**File:** `/etc/bind/named.conf.options`
+
 ```named
 options {
     directory "/var/cache/bind";
 
-    // Enable processing of recursive lookup queries
     recursion yes;
     allow-recursion { any; };
     allow-query { any; };
 
-    // Set forward-only behavior to avoid root hint iteration
-    forward only;
+    forward first;
     forwarders {
         8.8.8.8;
         1.1.1.1;
     };
 
-    // Disabled for internal staging environments without DNSSEC signoffs
     dnssec-validation no;
 
     listen-on port 53 { any; };
     listen-on-v6 { none; };
 };
 
-// Structural Logging Pipeline for Observability
 logging {
     channel default_log {
         file "/var/log/named/bind.log" versions 3 size 5m;
@@ -74,159 +116,267 @@ logging {
     };
 
     category default { default_log; };
-    category queries { default_log; };       // Track inbound access logs
-    category config { default_log; };        // Trace parsing/reload parameters
-    category resolver { default_log; };      // Debug upstream resolution flows
+    category queries { default_log; };
+    category config { default_log; };
+    category resolver { default_log; };
 };
 ```
 
-#### Split Local Forward Boundaries (`/etc/bind/named.conf.local`)
+### Split Forward Zones
+
+**File:** `/etc/bind/named.conf.local`
+
 ```named
-// Intercept the internal subdomain string and target the micro-segmentation path
 zone "internal.orbitvault.com" {
     type forward;
     forward only;
-    forwarders { 
+    forwarders {
         10.0.0.1;
         10.0.0.2;
     };
 };
 ```
 
-#### Lifecycle Activation
+### Activation
+
 ```bash
-# Verify configuration grammar rules are compliant before initializing
 named-checkconf /etc/bind/named.conf.options
 named-checkconf /etc/bind/named.conf.local
-
-# Restart service container
 sudo systemctl restart bind9
 ```
 
+### BIND9 Best Practices
+
+| Practice | Rationale |
+| :--- | :--- |
+| Use `forward first` (not `forward only`) in global options | Allows fallback to recursion if forwarders fail |
+| Use `forward only` in zone blocks | Forces strict forwarding for internal zones |
+| Set `versions 3 size 5m` on log files | Prevents log disk exhaustion |
+| Run `named-checkconf` before restart | Catches syntax errors before service disruption |
+| Disable DNSSEC validation for internal-only zones | Avoids validation failures on private resolvers |
+
 ---
 
-### 2.2 Option B: Lightweight Footprint with `dnsmasq`
-`dnsmasq` is optimized for resource-constrained edge systems, bare-metal nodes, container sidecars, and local virtualization layers.
+## 4. dnsmasq Implementation
 
-#### Tailored Schema (`/etc/dnsmasq.conf`)
+dnsmasq is ideal for lightweight environments — edge proxies, homelabs, container sidecars, and resource-constrained nodes.
+
+### Configuration
+
+**File:** `/etc/dnsmasq.conf`
+
 ```ini
-# Core Runtime Parameters
 port=53
-domain-needed       # Do not forward plain names without dots to upstream servers
-bogus-priv          # Intercept and block reverse-lookup private IP ranges from escaping
-no-resolv           # Do not read structural settings from host operating system /etc/resolv.conf
+domain-needed
+bogus-priv
+no-resolv
 
-# Explicit Conditional Split Rules (Private Domain Resolution)
+# Conditional forwarding — internal zone
 server=/internal.orbitvault.com/10.0.0.1
 server=/internal.orbitvault.com/10.0.0.2
 
-# Default External Internet Routing Fallbacks
+# Default public DNS
 server=8.8.8.8
 server=1.1.1.1
 
-# Performance & In-Memory Optimization Storage
+# Caching
 cache-size=1000
 min-cache-ttl=300
 
-# Logging & Diagnostic Pipeline Hook
+# Logging
 log-queries
 log-facility=/var/log/dnsmasq.log
 
-# System Socket Interface Interception
+# Interface binding
 listen-address=127.0.0.1,0.0.0.0
 bind-interfaces
 ```
 
-#### Lifecycle Activation
-```bash
-# Check syntax integrity
-dnsmasq --test
+### Activation
 
-# Restart application daemon
+```bash
+dnsmasq --test
 sudo systemctl restart dnsmasq
 ```
 
+### dnsmasq Best Practices
+
+| Practice | Rationale |
+| :--- | :--- |
+| Always set `no-resolv` | Prevents dnsmasq from reading `/etc/resolv.conf` and bypassing your rules |
+| Set `domain-needed` | Drops queries for bare names without dots, reducing noise |
+| Set `bogus-priv` | Prevents reverse lookups for private IPs from leaking upstream |
+| Use `bind-interfaces` | Security — only listens on specified interfaces |
+| Set `cache-size=1000` | Balances memory use vs cache hit rate for small deployments |
+
 ---
 
-### 2.3 Option C: High-Throughput & Hardened with Unbound
-Unbound is an incredibly secure, performant, validating resolver designed to absorb high traffic patterns while enforcing aggressive optimization parameters.
+## 5. Unbound Implementation
 
-#### Configuration Anchor (`/etc/unbound/unbound.conf.d/forward-split-horizon.conf`)
+Unbound is a high-security, high-performance validating resolver. Ideal for environments that need DNSSEC support, aggressive caching, and hardened defaults.
+
+### Configuration
+
+**File:** `/etc/unbound/unbound.conf.d/forward-split-horizon.conf`
+
 ```yaml
 server:
   verbosity: 1
   interface: 0.0.0.0
   port: 53
   access-control: 0.0.0.0/0 allow
-  
-  # Transport Infrastructure Hooks
+
   do-ip4: yes
   do-udp: yes
   do-tcp: yes
-  
-  # Security Hardening Framework
+
   hide-identity: yes
   hide-version: yes
-  use-caps-for-id: no # Prevent mixing character cases for older upstream segments
-  
-  # Cache Pipeline Adjustments
+  use-caps-for-id: no
+
   cache-min-ttl: 300
   cache-max-ttl: 300
-  prefetch: yes       # Background refresh expiring active keys to boost throughput
+  prefetch: yes
   prefetch-key: yes
 
-  # Observability System Outlets
   logfile: "/var/log/unbound.log"
 
-# Conditional Interception (Specific Internal Domain Mapping)
+# Internal zone — private resolvers
 forward-zone:
   name: "internal.orbitvault.com."
   forward-tls-upstream: no
   forward-addr: 10.0.0.1
   forward-addr: 10.0.0.2
 
-# Catch-All Global Routing Configuration (Public Internet Namespace Outlets)
+# Catch-all — public resolvers
 forward-zone:
   name: "."
   forward-addr: 8.8.8.8
   forward-addr: 1.1.1.1
 ```
 
-#### Lifecycle Activation
-```bash
-# Validate yaml/grammar alignment parameters
-unbound-checkconf /etc/unbound/unbound.conf.d/forward-split-horizon.conf
+### Activation
 
-# Restart daemon container
+```bash
+unbound-checkconf /etc/unbound/unbound.conf.d/forward-split-horizon.conf
 sudo systemctl restart unbound
 ```
 
+### Unbound Best Practices
+
+| Practice | Rationale |
+| :--- | :--- |
+| Set `access-control` per subnet | Don't allow `0.0.0.0/0` in production — restrict to trusted networks |
+| Enable `prefetch` and `prefetch-key` | Refreshes expiring cache entries in background, reduces latency |
+| Set `cache-min-ttl` and `cache-max-ttl` | Bounded cache lifetime prevents stale records |
+| Use `forward-tls-upstream: yes` | Encrypts forwarding traffic to upstream resolvers |
+| Set `hide-identity: yes` and `hide-version: yes` | Prevents fingerprinting of your DNS software |
+
 ---
 
-## 3. Post-Deployment Verification Controls
+## 6. Verification & Troubleshooting
 
-Utilize `dig` (Domain Information Groper) to run live lookups against your newly listening local interface IP socket (`127.0.0.1`) and confirm path routing policies:
+### Test with dig
 
 ```bash
-# 1. Target the internal routing boundary zone
+# Internal zone — should resolve via 10.0.0.1
 dig internal.orbitvault.com @127.0.0.1
 
-# 2. Target the broader external public space domain mapping
+# Public zone — should resolve via 8.8.8.8
 dig www.orbitvault.com @127.0.0.1
+
+# Verify forwarding path
+dig +trace internal.orbitvault.com @127.0.0.1
 ```
 
-### Validation Inspection Matrix
-* Check your generated log files (`/var/log/named/bind.log`, `/var/log/dnsmasq.log`, or `/var/log/unbound.log`) to guarantee metrics tracking.
-* Lookups against `internal.orbitvault.com` must reflect the network route origin traced back to the `10.0.0.1` upstream stack.
-* Lookups against generic zones like `www.orbitvault.com` or `google.com` must capture outbound traffic metrics mapping directly through Google's public `8.8.8.8` anchor.
+### Expected Results
+
+| Query | Expected Upstream | Expected Answer |
+| :--- | :--- | :--- |
+| `internal.orbitvault.com` | `10.0.0.1` | Private IP (e.g., `10.0.1.50`) |
+| `www.orbitvault.com` | `8.8.8.8` | Public IP (e.g., `203.0.113.10`) |
+| `api.internal.orbitvault.com` | `10.0.0.1` | Private IP |
+
+### Log Locations
+
+| DNS Server | Log File | What to Check |
+| :--- | :--- | :--- |
+| BIND9 | `/var/log/named/bind.log` | Query categories, resolution paths |
+| dnsmasq | `/var/log/dnsmasq.log` | Forwarding decisions, cache hits |
+| Unbound | `/var/log/unbound.log` | Validation results, prefetch activity |
+
+### Common Issues
+
+| Issue | Cause | Fix |
+| :--- | :--- | :--- |
+| Internal zone resolves to public IP | Forward zone not configured | Verify zone block exists in config |
+| SERVFAIL on internal queries | Private DNS unreachable | Check network connectivity to `10.0.0.1` |
+| DNSSEC validation failures | Upstream doesn't support DNSSEC | Set `dnssec-validation no` (BIND9) or disable validation |
+| Queries bypass forwarder | `/etc/resolv.conf` overriding | Set `no-resolv` (dnsmasq) or remove default nameservers |
+| Log file grows unbounded | No log rotation configured | Add `logrotate` config or set `versions 3 size 5m` |
 
 ---
 
-## 4. Architectural Selection Matrix
+## 7. Best Practices
 
-| Metric Parameter | BIND9 Engine | `dnsmasq` Engine | Unbound Engine |
+### Security Hardening
+
+| Practice | BIND9 | dnsmasq | Unbound |
 | :--- | :--- | :--- | :--- |
-| **Primary Use-Case Profile** | Large Complex Corporate Datacenters | Edge Proxies, Home Labs, Local Nodes | Hardened APIs & Cloud-Native Gateways |
-| **Memory/Compute Overhead** | Moderate to Heavy | Minimal / Negligible | Highly Optimized Efficiency |
-| **Zone Type Support** | Comprehensive Authoritative + Forwarding | Strict Basic Forwarding / Hosts Overrides | High Performance Validation & Forwarding |
-| **Advanced Caching Architecture**| Advanced Configuration Controls | Flat In-Memory Array | High Throughput Prefetch Pools |
+| Restrict query source | `allow-query { acl; };` | `interface=` + `bind-interfaces` | `access-control: 10.0.0.0/8 allow` |
+| Disable open recursion | `allow-recursion { trusted; };` | `no-resolv` + explicit servers | `access-control` restricts access |
+| Hide software version | N/A (not exposed in responses) | N/A | `hide-version: yes` |
+| Encrypt forwarding | N/A (forwarders are plaintext) | N/A | `forward-tls-upstream: yes` |
+| Rate limiting | `rate-limit` clause | `--dns-forward-max` | `num-queries-per-thread` |
+
+### Caching Strategy
+
+| Parameter | Recommended | Rationale |
+| :--- | :--- | :--- |
+| `cache-size` (dnsmasq) | 1000–10000 | Balance memory vs hit rate |
+| `cache-min-ttl` (Unbound) | 300s | Prevents excessive upstream queries |
+| `cache-max-ttl` (Unbound) | 86400s | Bounded staleness |
+| `prefetch` (Unbound) | yes | Background refresh reduces latency spikes |
+| Log rotation | All servers | Prevents disk exhaustion |
+
+### Logging & Observability
+
+| Goal | Implementation |
+| :--- | :--- |
+| Audit trail | Log all queries with timestamps |
+| Performance monitoring | Track cache hit ratio, query latency |
+| Security alerts | Monitor for unusual query patterns (DDoS, exfiltration) |
+| Compliance | Retain logs per organizational policy |
+
+### DNSSEC Considerations
+
+| Environment | Recommendation |
+| :--- | :--- |
+| Internal-only resolvers | Disable DNSSEC validation — private zones aren't signed |
+| Public-facing resolvers | Enable DNSSEC validation for trust anchor verification |
+| Mixed environments | Use `dnssec-validation auto` with managed trust anchors |
+
+---
+
+## 8. Selection Matrix
+
+| Criterion | BIND9 | dnsmasq | Unbound |
+| :--- | :--- | :--- | :--- |
+| **Best for** | Enterprise, complex routing | Edge, homelab, containers | High-security, high-throughput |
+| **Memory footprint** | Moderate–Heavy | Minimal | Optimized |
+| **Zone support** | Full authoritative + forwarding | Forwarding + hosts only | Forwarding + validation |
+| **DNSSEC** | Full support | None | Full support |
+| **Config complexity** | High | Low | Medium |
+| **Logging** | Granular per-category | Simple facility-based | Structured with verbosity levels |
+| **Conditional forwarding** | Zone-based | `server=/domain/ip` syntax | `forward-zone` blocks |
+| **Production readiness** | Proven at scale | Proven at edge | Proven in security-critical environments |
+
+---
+
+## References
+
+- [BIND9 Administrator Reference Manual](https://kb.isc.org/docs/aa-00886)
+- [dnsmasq Manual](https://thekelleys.org.uk/dnsmasq/doc.html)
+- [Unbound Documentation](https://nlnetlabs.nl/documentation/unbound/)
+- [RFC 1035 — Domain Names](https://datatracker.ietf.org/doc/html/rfc1035)
+- [RFC 2782 — DNS SRV Records](https://datatracker.ietf.org/doc/html/rfc2782)

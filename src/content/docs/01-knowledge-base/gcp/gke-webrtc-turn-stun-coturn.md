@@ -8,7 +8,7 @@
 | **02** | [Architecture](#2-architecture) | Coturn + STUNner + Envoy Gateway topology. |
 | **03** | [Coturn Deployment](#3-coturn-deployment) | Deploying Coturn on Kubernetes. |
 | **04** | [Envoy Gateway Integration](#4-envoy-gateway-integration) | UDPRoute for TURN/STUN traffic routing. |
-| **05** | [Application Integration](#5-application-integration) | WebRTC configuration for Toko Sapa. |
+| **05** | [Application Integration](#5-application-integration) | WebRTC configuration for MyApp. |
 | **06** | [Security & Hardening](#6-security--hardening) | Credentials, rate limiting, and monitoring. |
 
 ---
@@ -43,7 +43,7 @@ graph TB
 | **TURN** | Relay media through server | P2P fails (symmetric NAT, firewall) |
 | **ICE** | Negotiate best path | Combines STUN + TURN candidates |
 
-### Toko Sapa Call Scenarios
+### MyApp Call Scenarios
 
 | Scenario | Connection | STUN/TURN Needed |
 | :--- | :--- | :--- |
@@ -61,8 +61,8 @@ graph TB
 ```mermaid
 graph TB
     subgraph INTERNET["Internet"]
-        caller["Caller\n(Toko Sapa)"]
-        callee["Callee\n(Toko Sapa)"]
+        caller["Caller\n(MyApp)"]
+        callee["Callee\n(MyApp)"]
     end
 
     subgraph K8S["Kubernetes Cluster"]
@@ -74,7 +74,7 @@ graph TB
             turn1["Coturn Pod 1\n(Zone A)"]
             turn2["Coturn Pod 2\n(Zone B)"]
         end
-        subgraph APP["Toko Sapa Backend"]
+        subgraph APP["MyApp Backend"]
             signaling["Signaling Server\nWebSocket"]
         end
     end
@@ -133,7 +133,7 @@ data:
     static-auth-secret=SECRET_KEY
     
     # Security
-    realm=toko-sapa.example.id
+    realm=myapp.example.id
     lt-cred-mech
     user=turnuser:turnpassword
     
@@ -164,7 +164,7 @@ metadata:
     app: coturn
     app.kubernetes.io/name: coturn
     app.kubernetes.io/component: webrtc
-    app.kubernetes.io/part-of: toko-sapa
+    app.kubernetes.io/part-of: myapp
 spec:
   replicas: 2
   selector:
@@ -293,7 +293,7 @@ spec:
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
-  name: toko-sapa-gateway
+  name: myapp-gateway
   namespace: envoy-gateway-system
 spec:
   gatewayClassName: envoygateway
@@ -301,12 +301,12 @@ spec:
   - name: https
     protocol: HTTPS
     port: 443
-    hostname: "toko-sapa.example.id"
+    hostname: "myapp.example.id"
     tls:
       mode: Terminate
       certificateRefs:
       - kind: Secret
-        name: toko-sapa-tls
+        name: myapp-tls
     allowedRoutes:
       namespaces:
         from: All
@@ -318,7 +318,7 @@ spec:
         from: Selector
         selector:
           matchLabels:
-            gateway: toko-sapa
+            gateway: myapp
   - name: stun-turn-udp
     protocol: UDP
     port: 3478
@@ -327,7 +327,7 @@ spec:
         from: Selector
         selector:
           matchLabels:
-            gateway: toko-sapa
+            gateway: myapp
   - name: turn-tls
     protocol: TLS
     port: 5349
@@ -338,7 +338,7 @@ spec:
         from: Selector
         selector:
           matchLabels:
-            gateway: toko-sapa
+            gateway: myapp
 ```
 
 ### UDPRoute for Coturn
@@ -350,10 +350,10 @@ metadata:
   name: coturn-udp-route
   namespace: coturn
   labels:
-    gateway: toko-sapa
+    gateway: myapp
 spec:
   parentRefs:
-  - name: toko-sapa-gateway
+  - name: myapp-gateway
     namespace: envoy-gateway-system
     sectionName: stun-turn-udp
   rules:
@@ -372,10 +372,10 @@ metadata:
   name: coturn-tcp-route
   namespace: coturn
   labels:
-    gateway: toko-sapa
+    gateway: myapp
 spec:
   parentRefs:
-  - name: toko-sapa-gateway
+  - name: myapp-gateway
     namespace: envoy-gateway-system
     sectionName: stun-turn-tcp
   rules:
@@ -389,7 +389,7 @@ spec:
 
 ```mermaid
 sequenceDiagram
-    participant Client as Toko Sapa Client
+    participant Client as MyApp Client
     participant GW as Envoy Gateway
     participant Coturn as Coturn Pod
     participant Peer as Remote Peer
@@ -412,7 +412,7 @@ sequenceDiagram
 
 ## 5. Application Integration
 
-### Toko Sapa WebRTC Configuration
+### MyApp WebRTC Configuration
 
 ```javascript
 // Backend: Generate TURN credentials
@@ -420,15 +420,15 @@ const turnCredentials = {
   iceServers: [
     {
       urls: [
-        'stun:toko-sapa.example.id:3478',
-        'stuns:toko-sapa.example.id:5349'
+        'stun:myapp.example.id:3478',
+        'stuns:myapp.example.id:5349'
       ]
     },
     {
       urls: [
-        'turn:toko-sapa.example.id:3478?transport=udp',
-        'turn:toko-sapa.example.id:3478?transport=tcp',
-        'turns:toko-sapa.example.id:5349?transport=tcp'
+        'turn:myapp.example.id:3478?transport=udp',
+        'turn:myapp.example.id:3478?transport=tcp',
+        'turns:myapp.example.id:5349?transport=tcp'
       ],
       username: generateTurnUsername(),  // timestamp-based
       credential: generateTurnCredential() // HMAC of timestamp
@@ -494,7 +494,7 @@ import time
 
 def generate_turn_credentials(secret, ttl=86400):
     timestamp = int(time.time()) + ttl
-    username = f"{timestamp}:toko-sapa"
+    username = f"{timestamp}:myapp"
     credential = hmac.new(
         secret.encode(),
         username.encode(),
@@ -516,7 +516,7 @@ spec:
   targetRef:
     group: gateway.networking.k8s.io
     kind: Gateway
-    name: toko-sapa-gateway
+    name: myapp-gateway
   rateLimit:
     rules:
     - clientSelectors:
