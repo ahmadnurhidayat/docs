@@ -34,7 +34,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       # Fix: Synchronized version bundle explicitly down to stable v3 matching your initialization strategy
       - name: Initialize CodeQL
