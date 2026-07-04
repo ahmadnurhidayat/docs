@@ -90,38 +90,66 @@ Kami mengadopsi Kubernetes Gateway API di GKE dengan arsitektur **dual-gateway**
 
 ### Architecture
 
+```mermaid
+flowchart TB
+    subgraph MOBILE["Mobile App (Outside K8s)"]
+        APP["Alfagift App<br/>GPS + Chat"]
+    end
+
+    subgraph EXT_LB["GKE L7 Global External LB"]
+        EXT_GW["Gateway: alfagift-prod-gw<br/>*.alfagift.id<br/>TLS Termination"]
+    end
+
+    subgraph INT_LB["GKE L7 Regional Internal LB"]
+        INT_GW["Gateway: alfagift-internal-gw<br/>*.alfagift.internal"]
+    end
+
+    subgraph K8S["Inside Kubernetes — Service Discovery"]
+        subgraph LIVE["EMQX Live Tracking"]
+            SVC_L["Service: emqx<br/>ClusterIP :8083, :1883"]
+            STS_L["StatefulSet: emqx<br/>3 replicas"]
+            HD_L["Headless: emqx-headless<br/>DNS SRV clustering"]
+        end
+        subgraph CHAT["EMQX App Chat"]
+            SVC_C["Service: emqx-app-chat<br/>ClusterIP :8083, :1883"]
+            STS_C["StatefulSet: emqx-app-chat<br/>3 replicas"]
+        end
+        subgraph BACKEND["Backend Services"]
+            CE["chat-engine-svc<br/>ClusterIP:8080"]
+            ORDER["order-service<br/>ClusterIP:8080"]
+            DRIVER["driver-service<br/>ClusterIP:8080"]
+        end
+    end
+
+    subgraph ONPREM["On-Premise / Cross-VPC"]
+        EXT_SVC["External Service"]
+    end
+
+    APP -->|"WSS :443"| EXT_GW
+    EXT_GW -->|"wss-realtime-prod<br/>:8083"| SVC_L
+    EXT_GW -->|"wss-app-chat-prod<br/>:8083"| SVC_C
+
+    EXT_SVC -->|"MQTT :1883"| INT_GW
+    INT_GW -->|"mqtt-realtime-prod<br/>:1883"| SVC_L
+    INT_GW -->|"mqtt-app-chat-prod<br/>:1883"| SVC_C
+
+    SVC_L --> STS_L
+    SVC_C --> STS_C
+    STS_L --> HD_L
+    SVC_C -->|"Webhook<br/>(cluster.local)"| CE
+    STS_L -->|"Service Discovery"| ORDER
+    STS_L -->|"Service Discovery"| DRIVER
 ```
-User App (Mobile)
-    │
-    │ WebSocket (WSS)
-    │
-    ▼
-┌─────────────────────────────────┐
-│  GKE L7 Global External LB      │
-│  (Gateway API: external-gw)     │
-│  *.alfagift.id                  │
-└──────────────┬──────────────────┘
-               │
-    ┌──────────┴──────────┐
-    │                     │
-    ▼                     ▼
-┌──────────┐      ┌──────────┐
-│ Live     │      │ App Chat │
-│ Tracking │      │ EMQX     │
-│ EMQX     │      │          │
-│ wss-     │      │ wss-app- │
-│ realtime │      │ chat     │
-└────┬─────┘      └────┬─────┘
-     │                  │
-     │ MQTT topics:     │ Webhook:
-     │ location/#       │ chat-engine-svc
-     │ tracking/#       │ HTTP auth
-     ▼                  ▼
-┌─────────────────────────────────┐
-│  Backend Services               │
-│  (order, driver, notification)  │
-└─────────────────────────────────┘
-```
+
+### Three Communication Layers
+
+| Layer | Gateway | Consumer | Protocol | DNS |
+|---|---|---|---|---|
+| **External** | `gke-l7-global-external-managed` | Mobile App | WSS :443 | `wss-realtime-prod.alfagift.id` |
+| **Internal** | `gke-l7-rilb` | On-premise, cross-VPC | MQTT :1883 | `mqtt-realtime-prod.alfagift.internal` |
+| **Inside K8s** | None — Service Discovery | Pod-to-pod | ClusterIP / Headless | `emqx.infrastructure.svc.cluster.local` |
+
+**Key insight:** Gateway API handles traffic entering/leaving the cluster. Inside the cluster, native Kubernetes service discovery (ClusterIP for singletons, Headless for StatefulSet clustering) handles pod-to-pod communication.
 
 ### EMQX Configuration Highlights
 

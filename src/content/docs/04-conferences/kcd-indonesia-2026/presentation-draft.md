@@ -107,47 +107,101 @@ Mobile App ──WebSocket──▶ Gateway ──MQTT──▶ EMQX Broker ─�
 
 ## Slide 5 — Dual Gateway Architecture (3:30 - 5:00)
 
-**Alfagift: Dua Gateway untuk dua jenis traffic**
+**Alfagift: Dua Gateway untuk tiga layer komunikasi**
 
+```mermaid
+flowchart TB
+    subgraph MOBILE["Mobile App (Outside K8s)"]
+        APP["Alfagift App<br/>GPS + Chat"]
+    end
+
+    subgraph EXTERNAL["External Gateway — gke-l7-global-external-managed"]
+        EXT_GW["Gateway: alfagift-prod-gateway<br/>*.alfagift.id<br/>TLS Termination"]
+        EXT_ROUTE_1["HTTPRoute: wss-realtime-prod.alfagift.id"]
+        EXT_ROUTE_2["HTTPRoute: wss-app-chat-prod.alfagift.id"]
+    end
+
+    subgraph INTERNAL["Internal Gateway — gke-l7-rilb"]
+        INT_GW["Gateway: alfagift-internal-gw<br/>*.alfagift.internal"]
+        INT_ROUTE_1["HTTPRoute: mqtt-realtime-prod.alfagift.internal"]
+        INT_ROUTE_2["HTTPRoute: dashboard-emqx.alfagift.internal"]
+    end
+
+    subgraph K8S["Inside Kubernetes — Service Discovery"]
+        direction TB
+        subgraph EMQX_LIVE["EMQX Live Tracking"]
+            SVC_LIVE["Service: emqx<br/>ClusterIP<br/>ports: 1883, 8083, 18083"]
+            STS_LIVE["StatefulSet: emqx<br/>3 replicas"]
+        end
+        subgraph EMQX_CHAT["EMQX App Chat"]
+            SVC_CHAT["Service: emqx-app-chat<br/>ClusterIP<br/>ports: 1883, 8083"]
+            STS_CHAT["StatefulSet: emqx-app-chat<br/>3 replicas"]
+        end
+        subgraph BACKEND["Backend Services"]
+            CHAT_ENGINE["Service: chat-engine-svc<br/>ClusterIP:8080"]
+            ORDER_SVC["Service: order-service<br/>ClusterIP:8080"]
+            DRIVER_SVC["Service: driver-service<br/>ClusterIP:8080"]
+        end
+        subgraph HEADLESS["Headless Services (DNS Discovery)"]
+            HD_LIVE["emqx-headless<br/>SRV records for clustering"]
+            HD_CHAT["emqx-app-chat-headless<br/>SRV records for clustering"]
+        end
+    end
+
+    subgraph ON_PREM["On-Premise / Other VPCs"]
+        EXT_SVC["External Service<br/>(via Internal Gateway)"]
+    end
+
+    APP -->|"WSS:443"| EXT_GW
+    EXT_GW --> EXT_ROUTE_1
+    EXT_GW --> EXT_ROUTE_2
+    EXT_ROUTE_1 -->|"HTTP:8083"| SVC_LIVE
+    EXT_ROUTE_2 -->|"HTTP:8083"| SVC_CHAT
+
+    EXT_SVC -->|"MQTT:1883"| INT_GW
+    INT_GW --> INT_ROUTE_1
+    INT_GW --> INT_ROUTE_2
+    INT_ROUTE_1 -->|"HTTP:1883"| SVC_LIVE
+    INT_ROUTE_2 -->|"HTTP:18083"| SVC_CHAT
+
+    SVC_LIVE --> STS_LIVE
+    SVC_CHAT --> STS_CHAT
+    STS_LIVE -->|"DNS: emqx-0.emqx-headless.infrastructure.svc"| HD_LIVE
+    STS_CHAT -->|"DNS: emqx-0.emqx-app-chat-headless.infrastructure.svc"| HD_CHAT
+
+    SVC_CHAT -->|"Webhook: cluster.local"| CHAT_ENGINE
+    STS_LIVE -->|"Service Discovery"| ORDER_SVC
+    STS_CHAT -->|"Service Discovery"| DRIVER_SVC
 ```
-                    ┌──────────────────┐
-                    │  EXTERNAL        │
-                    │  *.alfagift.id   │
-                    │  gke-l7-global-  │
-                    │  external-managed│
-                    └────────┬─────────┘
-                             │
-              ┌──────────────┼──────────────┐
-              │              │              │
-              ▼              ▼              ▼
-         Live Tracking   App Chat     Other Services
-         EMQX            EMQX         *.alfagift.id
 
+### Three Communication Layers
 
-                    ┌──────────────────┐
-                    │  INTERNAL        │
-                    │  *.alfagift.     │
-                    │  internal        │
-                    │  gke-l7-rilb     │
-                    └────────┬─────────┘
-                             │
-              ┌──────────────┼──────────────┐
-              │              │              │
-              ▼              ▼              ▼
-         MQTT internal  Chat MQTT    Dashboard
-```
+| Layer | Gateway | Consumer | Protocol | DNS |
+|---|---|---|---|---|
+| **External** | `gke-l7-global-external-managed` | Mobile App | WSS :443 | `wss-realtime-prod.alfagift.id` |
+| **Internal (cross-VPC)** | `gke-l7-rilb` | On-premise, other services | MQTT :1883 | `mqtt-realtime-prod.alfagift.internal` |
+| **Inside K8s** | None — Service Discovery | Pod-to-pod | ClusterIP / Headless | `emqx.infrastructure.svc.cluster.local` |
+
+### Key Insight
+
+> **Mobile App** → External Gateway (WSS) → EMQX
+> **On-premise / cross-VPC** → Internal Gateway (MQTT) → EMQX
+> **Pod-to-pod inside K8s** → Service Discovery (ClusterIP/Headless) → EMQX
 
 **External Gateway** — traffic publik, TLS termination, `*.alfagift.id`
-**Internal Gateway** — traffic internal, `*.alfagift.internal`, untuk service-to-service
+**Internal Gateway** — traffic internal dari luar cluster, `*.alfagift.internal`
+**Service Discovery** — komunikasi antar pod di dalam cluster, tanpa gateway
 
 > **Speaker Notes:**
 > Tunjukkan diagram ini. Biarkan audiens baca sebelum jelaskan.
 >
-> "Kami pakai dua Gateway. External Gateway melayani traffic publik — user mobile app connect ke WebSocket lewat `wss-realtime.alfagift.id`. Internal Gateway melayani traffic internal — service-to-service communication."
+> "Kami pakai tiga layer komunikasi. Pertama, External Gateway — user mobile app connect ke WebSocket lewat `wss-realtime.alfagift.id`. Ini public internet, TLS termination di load balancer."
 >
-> "Kedua gateway punya konfigurasi berbeda. External pakai `gke-l7-global-external-managed` — global load balancer. Internal pakai `gke-l7-rilb` — regional internal load balancer."
+> "Kedua, Internal Gateway — service dari on-premise atau VPC lain butuh akses MQTT. Mereka connect ke `mqtt-realtime-prod.alfagift.internal`. Ini regional internal load balancer, tidak bisa diakses dari internet."
 >
-> "Yang menarik: kedua gateway melayani service yang SAMA — EMQX live tracking dan chat. Tapi dengan akses berbeda. External hanya WebSocket. Internal untuk MQTT, dashboard, dan monitoring."
+> "Ketiga, di dalam Kubernetes sendiri — pod-to-pod communication pakai service discovery. ClusterIP untuk singleton services, headless untuk EMQX clustering. Tidak perlu lewat gateway."
+>
+> "Ini penting dipahami: Gateway API hanya untuk traffic yang MASUK atau KELUAR cluster. Traffic di dalam cluster pakai native Kubernetes service discovery."
 
 ---
 
@@ -242,32 +296,126 @@ Mobile App ──WSS──▶ EMQX ──Webhook──▶ Chat Engine Service
 
 ---
 
-## Slide 9 — Demo / Visual (8:30 - 9:15)
+## Slide 9 — Full Production Architecture (8:30 - 9:15)
 
-**Tunjukkan arsitektur production:**
+```mermaid
+flowchart TB
+    subgraph INTERNET["Internet"]
+        MOBILE["Mobile App<br/>Alfagift"]
+        ONPREM["On-Premise Services"]
+        MONITOR["Monitoring<br/>(Grafana, Prometheus)"]
+    end
 
+    subgraph EXT_LB["GKE L7 Global External LB"]
+        direction TB
+        EXT_GW["Gateway: alfagift-prod-gw<br/>Listeners: HTTP :80, HTTPS :443<br/>TLS: wildcard-cert<br/>Class: gke-l7-global-external-managed"]
+    end
+
+    subgraph INT_LB["GKE L7 Regional Internal LB"]
+        direction TB
+        INT_GW["Gateway: alfagift-internal-gw<br/>Listeners: MQTT :1883, WS :8083<br/>Class: gke-l7-rilb<br/>Allow global access: true"]
+    end
+
+    subgraph K8S["EKS Cluster — Service Discovery"]
+        direction TB
+
+        subgraph LIVE_TRACKING["Live Tracking EMQX"]
+            RT_SVC["Service: emqx<br/>ClusterIP"]
+            RT_STS["StatefulSet: emqx<br/>3 replicas"]
+            RT_HD["Headless: emqx-headless<br/>DNS SRV for clustering"]
+            RT_PVC["PVC: emqx-data<br/>1Gi"]
+        end
+
+        subgraph APP_CHAT["App Chat EMQX"]
+            CH_SVC["Service: emqx-app-chat<br/>ClusterIP"]
+            CH_STS["StatefulSet: emqx-app-chat<br/>3 replicas"]
+            CH_HD["Headless: emqx-app-chat-headless"]
+            CH_PVC["PVC: emqx-data<br/>1Gi"]
+        end
+
+        subgraph CHAT_ENGINE["Chat Engine"]
+            CE_SVC["Service: chat-engine-svc<br/>ClusterIP:8080"]
+            CE_DEP["Deployment: chat-engine<br/>N replicas"]
+        end
+
+        subgraph OTHER_SVCS["Other Services"]
+            ORDER["order-service<br/>ClusterIP:8080"]
+            DRIVER["driver-service<br/>ClusterIP:8080"]
+            NOTIF["notification-service<br/>ClusterIP:8080"]
+        end
+
+        subgraph OBSERVABILITY["Observability"]
+            PROM["Prometheus<br/>scrape :8080/metrics"]
+            GRAFANA["Grafana<br/>dashboards"]
+        end
+    end
+
+    subgraph DNS["Internal DNS"]
+        UNBOUND["Unbound<br/>forward alfagift.internal"]
+    end
+
+    subgraph BACKEND_EXT["Backend Infrastructure"]
+        MONGO["MongoDB<br/>ReplicaSet"]
+        KAFKA["Kafka<br/>Brokers"]
+        REDIS["Redis<br/>Cluster"]
+    end
+
+    MOBILE -->|"WSS :443"| EXT_GW
+    ONPREM -->|"MQTT :1883"| INT_GW
+    MONITOR -->|"HTTP :18083<br/>(dashboard)"| INT_GW
+
+    EXT_GW -->|"wss-realtime-prod<br/>:8083"| RT_SVC
+    EXT_GW -->|"wss-app-chat-prod<br/>:8083"| CH_SVC
+
+    INT_GW -->|"mqtt-realtime-prod<br/>:1883"| RT_SVC
+    INT_GW -->|"mqtt-app-chat-prod<br/>:1883"| CH_SVC
+    INT_GW -->|"dashboard-emqx<br/>:18083"| CH_SVC
+
+    RT_SVC --> RT_STS
+    CH_SVC --> CH_STS
+    RT_STS --> RT_HD
+    CH_STS --> CH_HD
+    RT_STS --> RT_PVC
+    CH_STS --> CH_PVC
+
+    CH_SVC -->|"Webhook<br/>(cluster.local)"| CE_SVC
+    CE_SVC --> CE_DEP
+
+    RT_STS -->|"Service Discovery"| ORDER
+    RT_STS -->|"Service Discovery"| DRIVER
+    CH_STS -->|"Service Discovery"| NOTIF
+
+    RT_STS -->|"metrics :8080"| PROM
+    CH_STS -->|"metrics :8080"| PROM
+    PROM --> GRAFANA
+
+    UNBOUND -.->|"resolve"| INT_GW
+
+    CE_DEP --> MONGO
+    CE_DEP --> KAFKA
+    CE_DEP --> REDIS
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    PRODUCTION ARCHITECTURE               │
-├─────────────────────────────────────────────────────────┤
-│                                                         │
-│  External LB ──┬── wss-realtime.alfagift.id ──▶ EMQX  │
-│  (Global L7)   │    wss-app-chat.alfagift.id ──▶ EMQX │
-│                │    api.alfagift.id ──▶ Other Services  │
-│                │                                        │
-│  Internal LB ──┤── mqtt-realtime.alfagift.internal     │
-│  (Regional)    │    dashboard.alfagift.internal         │
-│                │                                        │
-│  EMQX Cluster: 3 replicas, JWT auth, 2M connections    │
-│  Gateway API: HTTPRoute + GCPBackendPolicy (120s)       │
-│                                                         │
-└─────────────────────────────────────────────────────────┘
-```
+
+### Architecture Summary
+
+| Component | Access Method | Protocol | Use Case |
+|---|---|---|---|
+| EMQX Live Tracking | External Gateway | WSS :443 | Mobile app GPS |
+| EMQX Live Tracking | Internal Gateway | MQTT :1883 | On-premise services |
+| EMQX Live Tracking | Service Discovery | ClusterIP | Pod-to-pod |
+| EMQX App Chat | External Gateway | WSS :443 | Mobile app chat |
+| EMQX App Chat | Internal Gateway | MQTT :1883 | On-premise services |
+| Chat Engine | Service Discovery | ClusterIP :8080 | EMQX webhook |
+| Backend Services | Service Discovery | ClusterIP | Order, Driver, Notification |
 
 > **Speaker Notes:**
-> "Ini arsitektur production kami. Satu External Gateway melayani semua traffic publik. Satu Internal Gateway untuk semua traffic internal. EMQX cluster 3 replicas dengan 2M connection capacity."
+> "Ini arsitektur production kami. Tiga layer komunikasi:"
 >
-> "Perhatikan: semua service di-route via Gateway API. Tidak ada Ingress. Tidak ada nginx. Semua native Gateway API."
+> "External Gateway melayani mobile app — WSS untuk live tracking dan chat. Internal Gateway melayani on-premise dan monitoring — MQTT dan dashboard. Di dalam cluster, semua komunikasi pakai service discovery."
+>
+> "Perhatikan: EMQX punya dua deployment terpisah — live tracking dan chat. Keduanya pakai StatefulSet 3 replicas dengan headless service untuk clustering via DNS SRV records."
+>
+> "Chat engine terintegrasi via webhook — EMQX push pesan ke chat engine via cluster-local service call. Tidak perlu lewat gateway."
 
 ---
 
