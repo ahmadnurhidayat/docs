@@ -10,11 +10,11 @@
 
 ## Title
 
-**Real-Time Networking di Kubernetes: Live Tracking & Chat dengan Gateway API**
+**Real-Time Networking in Kubernetes: Live Tracking & Chat with Gateway API**
 
 ## Subtitle
 
-Bagaimana Alfagift menggunakan Kubernetes Gateway API untuk menjalankan live tracking dan chat bagi jutaan user — arsitektur dual-gateway, EMQX WebSocket clustering, dan integrasi webhook production.
+How Alfagift uses Kubernetes Gateway API to power live tracking and chat for millions of users — dual-gateway architecture, EMQX WebSocket clustering, and production webhook integration.
 
 ---
 
@@ -32,7 +32,7 @@ Bagaimana Alfagift menggunakan Kubernetes Gateway API untuk menjalankan live tra
 
 ## Talk Summary (2-3 sentences)
 
-Alfagift melayani jutaan user aktif dengan live tracking GPS dan chat real-time. Setiap detik ada WebSocket connections yang harus di-route dengan benar ke EMQX MQTT broker. Talk ini menjelaskan bagaimana kami menggunakan Kubernetes Gateway API — dengan dual-gateway pattern (external + internal) — untuk menjalankan infrastruktur real-time ini di production GKE, termasuk tantangan WebSocket long-lived connections, canary deployment, dan integrasi webhook untuk chat system.
+Alfagift serves millions of active users with real-time GPS live tracking and in-app chat. Every second, WebSocket connections must be correctly routed to the EMQX MQTT broker. This talk explains how we use Kubernetes Gateway API with a dual-gateway pattern (external + internal) to run this real-time infrastructure in production GKE — covering WebSocket long-lived connections, canary deployment, and webhook integration for the chat system.
 
 ---
 
@@ -40,49 +40,49 @@ Alfagift melayani jutaan user aktif dengan live tracking GPS dan chat real-time.
 
 ### Problem
 
-Alfagift membutuhkan infrastruktur networking yang handal untuk dua use case real-time kritis:
+Alfagift requires reliable networking infrastructure for two critical real-time use cases:
 
-1. **Live Tracking** — Setiap driver kurir mengirim GPS coordinates setiap beberapa detik via MQTT over WebSocket. Jika WebSocket connection mati atau gateway salah config, live tracking hilang untuk semua user.
+1. **Live Tracking** — Every delivery driver sends GPS coordinates every few seconds via MQTT over WebSocket. If the WebSocket connection drops or the gateway is misconfigured, live tracking goes down for all users.
 
-2. **Chat System** — User bisa chat dengan kurir langsung dari aplikasi. Chat system ini terintegrasi dengan EMQX via webhook ke external chat engine, dengan HTTP-based authorization.
+2. **Chat System** — Users can chat directly with drivers from the app. The chat system integrates with EMQX via webhooks to an external chat engine, with HTTP-based authorization.
 
-Sebelum menggunakan Gateway API, kami menghadapi beberapa tantangan dengan Ingress:
-- Ingress-nginx sudah retired (Maret 2026) — tidak ada security patches
-- WebSocket long-lived connections membutuhkan timeout tuning yang sulit di Ingress
-- Tidak ada native support untuk canary deployment berdasarkan weight atau header
-- Sulit memisahkan concerns antara platform team (gateway config) dan app team (routing rules)
+Before adopting Gateway API, we faced several challenges with Ingress:
+- ingress-nginx retired (March 2026) — no more security patches
+- WebSocket long-lived connections required difficult timeout tuning in Ingress
+- No native support for weight-based or header-based canary deployment
+- Difficult to separate concerns between the platform team (gateway config) and app team (routing rules)
 
 ### Solution
 
-Kami mengadopsi Kubernetes Gateway API di GKE dengan arsitektur **dual-gateway**:
+We adopted Kubernetes Gateway API on GKE with a **dual-gateway** architecture:
 
 **External Gateway** (`gke-l7-global-external-managed`):
-- Melayani traffic publik ke `*.alfagift.id`
-- TLS termination di load balancer
-- HTTPRoutes mem-routing berdasarkan hostname ke service yang tepat
+- Serves public traffic to `*.alfagift.id`
+- TLS termination at the load balancer
+- HTTPRoutes route by hostname to the correct service
 
 **Internal Gateway** (`gke-l7-rilb`):
-- Melayani traffic internal ke `*.alfagift.internal`
+- Serves internal traffic to `*.alfagift.internal`
 - Regional Internal Load Balancer
-- Untuk service-to-service communication dan monitoring dashboard
+- For service-to-service communication and monitoring dashboards
 
 **EMQX MQTT Broker** (3-replica StatefulSet):
-- Live Tracking: JWT authentication, ACL rules untuk `location/#` dan `tracking/#` topics
-- Chat System: Webhook integration ke external chat engine, HTTP-based authorization
-- WebSocket exposed via Gateway API di port 8083
+- Live Tracking: JWT authentication, ACL rules for `location/#` and `tracking/#` topics
+- Chat System: Webhook integration to external chat engine, HTTP-based authorization
+- WebSocket exposed via Gateway API on port 8083
 
 **GKE-Native CRDs**:
-- `GCPBackendPolicy` — timeout 120 detik untuk WebSocket connections
-- `HealthCheckPolicy` — HTTP health check ke `/api/v5/status`
-- `GCPGatewayPolicy` — menghubungkan backend policy ke service
+- `GCPBackendPolicy` — 120-second timeout for WebSocket connections
+- `HealthCheckPolicy` — HTTP health check to `/api/v5/status`
+- `GCPGatewayPolicy` — links backend policy to service
 
 ### Key Takeaways
 
-1. Gateway API bukan hanya pengganti Ingress — ini adalah role-oriented API yang memisahkan concerns antara platform team dan app team
-2. WebSocket routing bisa dilakukan tanpa special controller configuration
-3. Canary deployment (weight-based dan header-based) adalah native feature, bukan annotation hack
-4. Dual-gateway pattern (external + internal) memberikan fleksibilitas untuk hybrid traffic patterns
-5. GKE-native CRDs memberikan kontrol lebih baik dibandingkan generic annotations
+1. Gateway API is not just an Ingress replacement — it is a role-oriented API that separates concerns between platform and app teams
+2. WebSocket routing works without special controller configuration
+3. Canary deployment (weight-based and header-based) is a native feature, not an annotation hack
+4. The dual-gateway pattern (external + internal) provides flexibility for hybrid traffic patterns
+5. GKE-native CRDs offer better control compared to generic annotations
 
 ---
 
