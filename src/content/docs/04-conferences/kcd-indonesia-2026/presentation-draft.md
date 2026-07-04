@@ -32,8 +32,13 @@ Ahmad Nurhidayat — Platform Engineer, Alfagift
 
 **Kalau WebSocket mati — live tracking hilang untuk semua user.**
 
-```
-Mobile App ──WebSocket──▶ Gateway ──MQTT──▶ EMQX Broker ──▶ Backend
+```mermaid
+flowchart LR
+    A["Mobile App"] -->|"WebSocket<br/>GPS data"| B["Gateway"]
+    B -->|"MQTT"| C["EMQX Broker"]
+    C -->|"process"| D["Backend<br/>Services"]
+
+    style B fill:#dc2626,color:#fff
 ```
 
 > **Speaker Notes:**
@@ -71,21 +76,18 @@ Mobile App ──WebSocket──▶ Gateway ──MQTT──▶ EMQX Broker ─�
 
 **Gateway API memisahkan concerns:**
 
-```
-┌─────────────────────────────────────┐
-│  GatewayClass                       │
-│  Cluster admin: which controller    │
-└──────────────┬──────────────────────┘
-               │
-┌──────────────▼──────────────────────┐
-│  Gateway                            │
-│  Platform team: ports, TLS, scheme  │
-└──────────────┬──────────────────────┘
-               │
-┌──────────────▼──────────────────────┐
-│  HTTPRoute                          │
-│  App team: hostnames, paths, backends│
-└─────────────────────────────────────┘
+```mermaid
+flowchart TB
+    GC["GatewayClass<br/>Cluster Admin<br/>Which controller?"]
+    GW["Gateway<br/>Platform Team<br/>Ports, TLS, LB scheme"]
+    HR["HTTPRoute<br/>App Team<br/>Hostnames, paths, backends"]
+
+    GC -->|"references controller"| GW
+    GW -->|"attaches routes"| HR
+
+    style GC fill:#7c3aed,color:#fff
+    style GW fill:#2563eb,color:#fff
+    style HR fill:#059669,color:#fff
 ```
 
 | Resource | Owner | Controls |
@@ -251,12 +253,25 @@ spec:
 
 **Chat: EMQX + External Chat Engine via Webhook**
 
-```
-Mobile App ──WSS──▶ EMQX ──Webhook──▶ Chat Engine Service
-                     │
-                     │ HTTP Auth
-                     ▼
-                Authorization Check
+```mermaid
+sequenceDiagram
+    participant Mobile as Mobile App
+    participant GW as External Gateway
+    participant EMQX as EMQX Chat
+    participant ChatEngine as Chat Engine Service
+
+    Mobile->>GW: WSS :443 (send message)
+    GW->>EMQX: route to emqx-app-chat :8083
+
+    Note over EMQX: ACL check<br/>admin-only publish
+
+    EMQX->>ChatEngine: Webhook POST /v1/emqx/webhook
+    Note over ChatEngine: Process message<br/>store in DB<br/>push to recipient
+
+    ChatEngine->>EMQX: HTTP Auth check /v1/emqx/check
+    Note over EMQX: Verify user<br/>has access to channel
+
+    EMQX->>Mobile: Deliver to recipient via WSS
 ```
 
 | Setting | Live Tracking | Chat |
