@@ -23,8 +23,8 @@ How Alfagift uses Kubernetes Gateway API to power live tracking and chat for mil
 | Field | Value |
 |---|---|
 | **Name** | Ahmad Nurhidayat |
-| **Role** | Platform / Infrastructure Engineer at Alfagift (GLI) |
-| **Bio** | Infrastructure engineer focused on Kubernetes, networking, and real-time systems. Building and operating production clusters on GKE serving millions of users for Alfagift. |
+| **Role** | Cloud DevOps Engineer at Alfagift (GLI) |
+| **Bio** | A highly driven Information Technology graduate from Universitas Jenderal Achmad Yani Yogyakarta, specializing in Cloud DevOps Engineering. Experienced in architecting and managing cloud infrastructure, containerized environments, and CI/CD pipelines with a strong focus on reliability, scalability, and performance optimization. Proficient in leveraging leading technologies including Google Cloud Platform (GCP), Kubernetes, Terraform, and Grafana Stack. Currently working as a Cloud DevOps Engineer at Alfagift (GLI), where I design and operate production GKE clusters serving millions of active users, building real-time networking infrastructure with Kubernetes Gateway API — a dual-gateway architecture powering live tracking and chat systems via EMQX MQTT brokers and WebSocket connections. |
 | **Twitter / LinkedIn** | [Your handles] |
 | **Location** | [Your city — mention if outside Jakarta for travel support] |
 
