@@ -10,11 +10,11 @@
 
 ## Title
 
-**Real-Time Networking di Kubernetes: Live Tracking & Chat dengan Gateway API**
+**Real-Time Networking in Kubernetes: Live Tracking & Chat with Gateway API**
 
 ## Subtitle
 
-Bagaimana Alfagift menggunakan Kubernetes Gateway API untuk menjalankan live tracking dan chat bagi jutaan user — arsitektur dual-gateway, EMQX WebSocket clustering, dan integrasi webhook production.
+How Alfagift uses Kubernetes Gateway API to power live tracking and chat for millions of users — dual-gateway architecture, EMQX WebSocket clustering, and production webhook integration.
 
 ---
 
@@ -23,8 +23,8 @@ Bagaimana Alfagift menggunakan Kubernetes Gateway API untuk menjalankan live tra
 | Field | Value |
 |---|---|
 | **Name** | Ahmad Nurhidayat |
-| **Role** | Platform / Infrastructure Engineer at Alfagift (GLI) |
-| **Bio** | Infrastructure engineer focused on Kubernetes, networking, and real-time systems. Building and operating production clusters on GKE serving millions of users for Alfagift. |
+| **Role** | Cloud DevOps Engineer at Alfagift (GLI) |
+| **Bio** | A highly driven Information Technology graduate from Universitas Jenderal Achmad Yani Yogyakarta, specializing in Cloud DevOps Engineering. Experienced in architecting and managing cloud infrastructure, containerized environments, and CI/CD pipelines with a strong focus on reliability, scalability, and performance optimization. Proficient in leveraging leading technologies including Google Cloud Platform (GCP), Kubernetes, Terraform, and Grafana Stack. Currently working as a Cloud DevOps Engineer at Alfagift (GLI), where I design and operate production GKE clusters serving millions of active users, building real-time networking infrastructure with Kubernetes Gateway API — a dual-gateway architecture powering live tracking and chat systems via EMQX MQTT brokers and WebSocket connections. |
 | **Twitter / LinkedIn** | [Your handles] |
 | **Location** | [Your city — mention if outside Jakarta for travel support] |
 
@@ -32,7 +32,45 @@ Bagaimana Alfagift menggunakan Kubernetes Gateway API untuk menjalankan live tra
 
 ## Talk Summary (2-3 sentences)
 
-Alfagift melayani jutaan user aktif dengan live tracking GPS dan chat real-time. Setiap detik ada WebSocket connections yang harus di-route dengan benar ke EMQX MQTT broker. Talk ini menjelaskan bagaimana kami menggunakan Kubernetes Gateway API — dengan dual-gateway pattern (external + internal) — untuk menjalankan infrastruktur real-time ini di production GKE, termasuk tantangan WebSocket long-lived connections, canary deployment, dan integrasi webhook untuk chat system.
+Alfagift serves millions of active users with real-time GPS live tracking and in-app chat. Every second, WebSocket connections must be correctly routed to the EMQX MQTT broker. This talk explains how we use Kubernetes Gateway API with a dual-gateway pattern (external + internal) to run this real-time infrastructure in production GKE — covering WebSocket long-lived connections, canary deployment, and webhook integration for the chat system.
+
+### Sessionize Abstract (max 900 chars)
+
+> **Copy-paste ready:**
+
+Alfagift serves millions of active users with real-time GPS live tracking and in-app chat. Every second, WebSocket connections must be correctly routed to EMQX MQTT brokers.
+
+This talk explains how we use Kubernetes Gateway API with a dual-gateway architecture — an external gateway (gke-l7-global-external-managed) for mobile apps via WSS, and an internal gateway (gke-l7-rilb) for cross-VPC MQTT communication. Inside the cluster, native Kubernetes service discovery handles pod-to-pod routing.
+
+We run two isolated EMQX clusters (3-replica StatefulSets) — one for live tracking with JWT auth and open ACL on location/# topics, another for chat with webhook integration and HTTP-based authorization. GKE-native CRDs (GCPBackendPolicy, HealthCheckPolicy) provide 120-second timeouts for long-lived WebSocket connections and health monitoring.
+
+Key takeaways: role separation between platform and app teams, WebSocket routing without special config, canary deployment via native weight splitting, and when to use Gateway API vs service discovery.
+
+### Sessionize Description
+
+> **Copy-paste ready:**
+
+Live tracking and chat are critical features for any delivery and loyalty platform. When millions of users depend on real-time GPS updates and instant messaging, the networking layer must be rock solid.
+
+In this talk, I'll share how Alfagift — one of Indonesia's largest fintech and loyalty platforms — uses Kubernetes Gateway API to power live tracking and chat for millions of active users on production GKE.
+
+We run a dual-gateway architecture:
+- External Gateway (gke-l7-global-external-managed) serves mobile apps via WSS with TLS termination
+- Internal Gateway (gke-l7-rilb) handles cross-VPC and on-premise MQTT communication
+- Inside the cluster, native Kubernetes service discovery (ClusterIP + Headless) routes pod-to-pod traffic
+
+The infrastructure runs two isolated EMQX MQTT broker clusters (3-replica StatefulSets each):
+- Live Tracking: JWT authentication, open ACL for location/# and tracking/# topics
+- Chat System: Webhook integration to external chat engine, HTTP-based authorization, strict ACL
+
+GKE-native CRDs (GCPBackendPolicy, HealthCheckPolicy, GCPGatewayPolicy) provide fine-grained control — 120-second timeouts for long-lived WebSocket connections, HTTP health checks, and backend security policies.
+
+What you'll learn:
+- How Gateway API separates concerns between platform and app teams
+- WebSocket routing without special controller configuration
+- When to use Gateway API vs native service discovery
+- Canary deployment via weight-based and header-based routing
+- Real production challenges and how we solved them
 
 ---
 
@@ -40,49 +78,49 @@ Alfagift melayani jutaan user aktif dengan live tracking GPS dan chat real-time.
 
 ### Problem
 
-Alfagift membutuhkan infrastruktur networking yang handal untuk dua use case real-time kritis:
+Alfagift requires reliable networking infrastructure for two critical real-time use cases:
 
-1. **Live Tracking** — Setiap driver kurir mengirim GPS coordinates setiap beberapa detik via MQTT over WebSocket. Jika WebSocket connection mati atau gateway salah config, live tracking hilang untuk semua user.
+1. **Live Tracking** — Every delivery driver sends GPS coordinates every few seconds via MQTT over WebSocket. If the WebSocket connection drops or the gateway is misconfigured, live tracking goes down for all users.
 
-2. **Chat System** — User bisa chat dengan kurir langsung dari aplikasi. Chat system ini terintegrasi dengan EMQX via webhook ke external chat engine, dengan HTTP-based authorization.
+2. **Chat System** — Users can chat directly with drivers from the app. The chat system integrates with EMQX via webhooks to an external chat engine, with HTTP-based authorization.
 
-Sebelum menggunakan Gateway API, kami menghadapi beberapa tantangan dengan Ingress:
-- Ingress-nginx sudah retired (Maret 2026) — tidak ada security patches
-- WebSocket long-lived connections membutuhkan timeout tuning yang sulit di Ingress
-- Tidak ada native support untuk canary deployment berdasarkan weight atau header
-- Sulit memisahkan concerns antara platform team (gateway config) dan app team (routing rules)
+Before adopting Gateway API, we faced several challenges with Ingress:
+- ingress-nginx retired (March 2026) — no more security patches
+- WebSocket long-lived connections required difficult timeout tuning in Ingress
+- No native support for weight-based or header-based canary deployment
+- Difficult to separate concerns between the platform team (gateway config) and app team (routing rules)
 
 ### Solution
 
-Kami mengadopsi Kubernetes Gateway API di GKE dengan arsitektur **dual-gateway**:
+We adopted Kubernetes Gateway API on GKE with a **dual-gateway** architecture:
 
 **External Gateway** (`gke-l7-global-external-managed`):
-- Melayani traffic publik ke `*.alfagift.id`
-- TLS termination di load balancer
-- HTTPRoutes mem-routing berdasarkan hostname ke service yang tepat
+- Serves public traffic to `*.alfagift.id`
+- TLS termination at the load balancer
+- HTTPRoutes route by hostname to the correct service
 
 **Internal Gateway** (`gke-l7-rilb`):
-- Melayani traffic internal ke `*.alfagift.internal`
+- Serves internal traffic to `*.alfagift.internal`
 - Regional Internal Load Balancer
-- Untuk service-to-service communication dan monitoring dashboard
+- For service-to-service communication and monitoring dashboards
 
 **EMQX MQTT Broker** (3-replica StatefulSet):
-- Live Tracking: JWT authentication, ACL rules untuk `location/#` dan `tracking/#` topics
-- Chat System: Webhook integration ke external chat engine, HTTP-based authorization
-- WebSocket exposed via Gateway API di port 8083
+- Live Tracking: JWT authentication, ACL rules for `location/#` and `tracking/#` topics
+- Chat System: Webhook integration to external chat engine, HTTP-based authorization
+- WebSocket exposed via Gateway API on port 8083
 
 **GKE-Native CRDs**:
-- `GCPBackendPolicy` — timeout 120 detik untuk WebSocket connections
-- `HealthCheckPolicy` — HTTP health check ke `/api/v5/status`
-- `GCPGatewayPolicy` — menghubungkan backend policy ke service
+- `GCPBackendPolicy` — 120-second timeout for WebSocket connections
+- `HealthCheckPolicy` — HTTP health check to `/api/v5/status`
+- `GCPGatewayPolicy` — links backend policy to service
 
 ### Key Takeaways
 
-1. Gateway API bukan hanya pengganti Ingress — ini adalah role-oriented API yang memisahkan concerns antara platform team dan app team
-2. WebSocket routing bisa dilakukan tanpa special controller configuration
-3. Canary deployment (weight-based dan header-based) adalah native feature, bukan annotation hack
-4. Dual-gateway pattern (external + internal) memberikan fleksibilitas untuk hybrid traffic patterns
-5. GKE-native CRDs memberikan kontrol lebih baik dibandingkan generic annotations
+1. Gateway API is not just an Ingress replacement — it is a role-oriented API that separates concerns between platform and app teams
+2. WebSocket routing works without special controller configuration
+3. Canary deployment (weight-based and header-based) is a native feature, not an annotation hack
+4. The dual-gateway pattern (external + internal) provides flexibility for hybrid traffic patterns
+5. GKE-native CRDs offer better control compared to generic annotations
 
 ---
 
@@ -90,38 +128,66 @@ Kami mengadopsi Kubernetes Gateway API di GKE dengan arsitektur **dual-gateway**
 
 ### Architecture
 
+```mermaid
+flowchart TB
+    subgraph MOBILE["Mobile App (Outside K8s)"]
+        APP["Alfagift App<br/>GPS + Chat"]
+    end
+
+    subgraph EXT_LB["GKE L7 Global External LB"]
+        EXT_GW["Gateway: alfagift-prod-gw<br/>*.alfagift.id<br/>TLS Termination"]
+    end
+
+    subgraph INT_LB["GKE L7 Regional Internal LB"]
+        INT_GW["Gateway: alfagift-internal-gw<br/>*.alfagift.internal"]
+    end
+
+    subgraph K8S["Inside Kubernetes — Service Discovery"]
+        subgraph LIVE["EMQX Live Tracking"]
+            SVC_L["Service: emqx<br/>ClusterIP :8083, :1883"]
+            STS_L["StatefulSet: emqx<br/>3 replicas"]
+            HD_L["Headless: emqx-headless<br/>DNS SRV clustering"]
+        end
+        subgraph CHAT["EMQX App Chat"]
+            SVC_C["Service: emqx-app-chat<br/>ClusterIP :8083, :1883"]
+            STS_C["StatefulSet: emqx-app-chat<br/>3 replicas"]
+        end
+        subgraph BACKEND["Backend Services"]
+            CE["chat-service<br/>ClusterIP:8080"]
+            ORDER["order-service<br/>ClusterIP:8080"]
+            DRIVER["driver-service<br/>ClusterIP:8080"]
+        end
+    end
+
+    subgraph ONPREM["On-Premise / Cross-VPC"]
+        EXT_SVC["External Service"]
+    end
+
+    APP -->|"WSS :443"| EXT_GW
+    EXT_GW -->|"wss-realtime-prod<br/>:8083"| SVC_L
+    EXT_GW -->|"wss-app-chat-prod<br/>:8083"| SVC_C
+
+    EXT_SVC -->|"MQTT :1883"| INT_GW
+    INT_GW -->|"mqtt-realtime-prod<br/>:1883"| SVC_L
+    INT_GW -->|"mqtt-app-chat-prod<br/>:1883"| SVC_C
+
+    SVC_L --> STS_L
+    SVC_C --> STS_C
+    STS_L --> HD_L
+    SVC_C -->|"Webhook<br/>(cluster.local)"| CE
+    STS_L -->|"Service Discovery"| ORDER
+    STS_L -->|"Service Discovery"| DRIVER
 ```
-User App (Mobile)
-    │
-    │ WebSocket (WSS)
-    │
-    ▼
-┌─────────────────────────────────┐
-│  GKE L7 Global External LB      │
-│  (Gateway API: external-gw)     │
-│  *.alfagift.id                  │
-└──────────────┬──────────────────┘
-               │
-    ┌──────────┴──────────┐
-    │                     │
-    ▼                     ▼
-┌──────────┐      ┌──────────┐
-│ Live     │      │ App Chat │
-│ Tracking │      │ EMQX     │
-│ EMQX     │      │          │
-│ wss-     │      │ wss-app- │
-│ realtime │      │ chat     │
-└────┬─────┘      └────┬─────┘
-     │                  │
-     │ MQTT topics:     │ Webhook:
-     │ location/#       │ chat-engine-svc
-     │ tracking/#       │ HTTP auth
-     ▼                  ▼
-┌─────────────────────────────────┐
-│  Backend Services               │
-│  (order, driver, notification)  │
-└─────────────────────────────────┘
-```
+
+### Three Communication Layers
+
+| Layer | Gateway | Consumer | Protocol | DNS |
+|---|---|---|---|---|
+| **External** | `gke-l7-global-external-managed` | Mobile App | WSS :443 | `wss-realtime-prod.alfagift.id` |
+| **Internal** | `gke-l7-rilb` | On-premise, cross-VPC | MQTT :1883 | `mqtt-realtime-prod.alfagift.internal` |
+| **Inside K8s** | None — Service Discovery | Pod-to-pod | ClusterIP / Headless | `emqx.infrastructure.svc.cluster.local` |
+
+**Key insight:** Gateway API handles traffic entering/leaving the cluster. Inside the cluster, native Kubernetes service discovery (ClusterIP for singletons, Headless for StatefulSet clustering) handles pod-to-pod communication.
 
 ### EMQX Configuration Highlights
 
