@@ -153,7 +153,7 @@ flowchart TB
             STS_C["StatefulSet: emqx-app-chat<br/>3 replicas"]
         end
         subgraph BACKEND["Backend Services"]
-            CE["chat-engine-svc<br/>ClusterIP:8080"]
+            CE["chat-service<br/>ClusterIP:8080"]
             ORDER["order-service<br/>ClusterIP:8080"]
             DRIVER["driver-service<br/>ClusterIP:8080"]
         end

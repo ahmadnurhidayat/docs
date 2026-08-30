@@ -140,7 +140,7 @@ flowchart TB
             STS_CHAT["StatefulSet: emqx-app-chat<br/>3 replicas"]
         end
         subgraph BACKEND["Backend Services"]
-            CHAT_ENGINE["Service: chat-engine-svc<br/>ClusterIP:8080"]
+            CHAT_ENGINE["Service: chat-service<br/>ClusterIP:8080"]
             ORDER_SVC["Service: order-service<br/>ClusterIP:8080"]
             DRIVER_SVC["Service: driver-service<br/>ClusterIP:8080"]
         end
@@ -258,7 +258,7 @@ sequenceDiagram
     participant Mobile as Mobile App
     participant GW as External Gateway
     participant EMQX as EMQX Chat
-    participant ChatEngine as Chat Engine Service
+    participant ChatEngine as Chat Service
 
     Mobile->>GW: WSS :443 (send message)
     GW->>EMQX: route to emqx-app-chat :8083
@@ -349,8 +349,8 @@ flowchart TB
         end
 
         subgraph CHAT_ENGINE["Chat Engine"]
-            CE_SVC["Service: chat-engine-svc<br/>ClusterIP:8080"]
-            CE_DEP["Deployment: chat-engine<br/>N replicas"]
+            CE_SVC["Service: chat-service<br/>ClusterIP:8080"]
+            CE_DEP["Deployment: chat-service<br/>N replicas"]
         end
 
         subgraph OTHER_SVCS["Other Services"]
