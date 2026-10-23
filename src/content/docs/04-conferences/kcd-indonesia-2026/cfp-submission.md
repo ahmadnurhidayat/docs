@@ -40,7 +40,7 @@ Real-time chat looks simple until every message must reach the right user over a
 
 Real-time chat is simple until every message must reach the right user over a long-lived connection. This talk shows how we run in-app chat on GKE using Kubernetes Gateway API with a dual-gateway architecture — an external gateway for mobile WSS and an internal gateway for cross-VPC MQTT. Inside the cluster, native service discovery handles pod-to-pod routing.
 
-We run a 3-replica EMQX cluster for chat: webhook-authenticated connections, strict topic ACLs, and HTTP-based channel authorization through an external chat engine. GKE-native CRDs (GCPBackendPolicy, HealthCheckPolicy) provide 120-second timeouts for WebSockets and health checks.
+We run a 3-replica EMQX cluster for chat: webhook-authenticated connections, strict topic ACLs, and HTTP-based channel authorization through an external chat service. GKE-native CRDs (GCPBackendPolicy, HealthCheckPolicy) provide 120-second timeouts for WebSockets and health checks.
 
 Key takeaways: role separation between platform and app teams, explicit timeouts for long-lived connections, canary deployment via native weight splitting, and when to use Gateway API versus service discovery.
 
@@ -50,7 +50,7 @@ Key takeaways: role separation between platform and app teams, explicit timeouts
 
 This session presents a production-proven approach to real-time in-app chat on Google Kubernetes Engine using Kubernetes Gateway API, EMQX MQTT, and GKE-native load balancing. We built a dual-gateway architecture that routes public WebSocket traffic through an external gateway and cross-VPC MQTT through an internal gateway, while native service discovery handles pod-to-pod traffic. A 3-replica EMQX cluster provides webhook authentication, strict topic ACLs, and per-channel authorization, keeping chat delivery reliable at national scale.
 
-We'll cover the full stack: Gateway API resources, GKE backend and health-check policies for 120-second WebSocket timeouts, EMQX clustering with headless services and DNS SRV, and webhook integration with the chat engine. The session includes production lessons on long-lived connection timeouts, reconnect behavior, canary rollouts, and monitoring connection health and webhook latency — the patterns we use to keep chat stable during change.
+We'll cover the full stack: Gateway API resources, GKE backend and health-check policies for 120-second WebSocket timeouts, EMQX clustering with headless services and DNS SRV, and webhook integration with the chat service. The session includes production lessons on long-lived connection timeouts, reconnect behavior, canary rollouts, and monitoring connection health and webhook latency — the patterns we use to keep chat stable during change.
 
 ---
 
@@ -64,7 +64,7 @@ Three things make this hard:
 
 1. **Long-lived connections** — WebSockets stay open for hours. Default idle timeouts will cut them unless every layer is tuned deliberately.
 2. **Per-channel authorization** — A user may publish to one channel and subscribe to another. Authentication at connect time is not enough; authorization must happen per topic.
-3. **Webhook coupling** — The chat engine processes messages and enforces access through HTTP webhooks. If that path is slow or unavailable, message delivery degrades.
+3. **Webhook coupling** — The chat service processes messages and enforces access through HTTP webhooks. If that path is slow or unavailable, message delivery degrades.
 
 Before adopting Gateway API, we faced several challenges with Ingress:
 
@@ -93,7 +93,7 @@ We adopted Kubernetes Gateway API on GKE with a **dual-gateway** architecture:
 
 - Webhook-authenticated WebSocket connections
 - Strict topic ACLs: admin-only publish; users subscribe to their own channels
-- Webhook integration to an external chat engine for message processing and per-channel authorization
+- Webhook integration to an external chat service for message processing and per-channel authorization
 - WebSocket exposed via Gateway API on port 8083
 
 **GKE-Native CRDs**:
@@ -116,7 +116,7 @@ We adopted Kubernetes Gateway API on GKE with a **dual-gateway** architecture:
 2. **Long-lived connections need explicit timeouts at every layer.** Client heartbeat, backend policy (for example, 120 seconds), and broker session TTL must be aligned. Default idle timeouts will cut WebSockets.
 3. **Authentication is not authorization.** The connection webhook proves who connected; the per-channel authorization decides what they may publish to or subscribe to. Keep both, and do not duplicate the policy in the gateway.
 4. **Use headless services for StatefulSet clustering.** EMQX nodes find each other through DNS SRV records; consumers use ClusterIP. Mixing the two causes flapping.
-5. **Treat the webhook as part of the delivery path.** Measure its latency and error rate. A slow chat engine becomes slow message delivery, even when the broker is healthy.
+5. **Treat the webhook as part of the delivery path.** Measure its latency and error rate. A slow chat service becomes slow message delivery, even when the broker is healthy.
 6. **Canary with weights and headers, not parallel infrastructure.** Gateway API makes a 1% → 100% rollout a route change.
 7. **Monitor connections, not just requests.** Track active connections, handshake failures, broker saturation, publish/subscribe rates, and webhook latency alongside HTTP 5xx.
 

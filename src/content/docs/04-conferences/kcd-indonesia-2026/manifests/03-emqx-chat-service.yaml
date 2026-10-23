@@ -1,0 +1,49 @@
+# ============================================================================
+# EMQX Chat — Services for the MQTT broker that backs WebSocket chat
+#   - emqx-chat          : ClusterIP, the routable service (MQTT/WSS/dashboard)
+#   - emqx-chat-headless : headless, DNS SRV records for StatefulSet clustering
+# Namespace: infrastructure
+# ============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: emqx-chat
+  namespace: infrastructure
+  labels:
+    app: emqx-chat
+spec:
+  type: ClusterIP
+  selector:
+    app: emqx-chat
+  ports:
+    - name: mqtt
+      port: 1883
+      targetPort: 1883
+    - name: ws            # MQTT over WebSocket — the WSS backend for chat
+      port: 8083
+      targetPort: 8083
+    - name: dashboard
+      port: 18083
+      targetPort: 18083
+---
+# Headless Service: no ClusterIP -> DNS returns per-pod A + SRV records.
+# EMQX uses these SRV records to discover peers and form the cluster.
+apiVersion: v1
+kind: Service
+metadata:
+  name: emqx-chat-headless
+  namespace: infrastructure
+  labels:
+    app: emqx-chat
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true   # peers must resolve before readiness
+  selector:
+    app: emqx-chat
+  ports:
+    - name: ekka            # EMQX cluster gossip
+      port: 4370
+      targetPort: 4370
+    - name: mqtt
+      port: 1883
+      targetPort: 1883

@@ -41,7 +41,7 @@ Ahmad Nurhidayat — Platform Engineer, Consumer Platform
 flowchart LR
     A["Mobile App"] -->|"WebSocket<br/>chat messages"| B["Gateway"]
     B -->|"MQTT"| C["EMQX Broker"]
-    C -->|"webhook"| D["Chat Engine"]
+    C -->|"webhook"| D["Chat Service"]
 
     style B fill:#dc2626,color:#fff
 ```
@@ -53,7 +53,7 @@ flowchart LR
 >
 > "Tantangannya: kalau WebSocket connection mati, atau gateway salah config, chat degrade untuk semua user. Bukan satu user — semua user."
 >
-> Tunjukkan diagram sederhana: Mobile App -> Gateway -> EMQX -> Chat Engine.
+> Tunjukkan diagram sederhana: Mobile App -> Gateway -> EMQX -> Chat Service.
 
 ---
 
@@ -150,7 +150,7 @@ flowchart TB
     end
 
     subgraph ON_PREM["On-Premise / Other VPCs"]
-        EXT_SVC["Internal Service / Monitoring"]
+        EXT_SVC["Internal Service / User"]
     end
 
     APP -->|"WSS:443"| EXT_GW
@@ -182,7 +182,7 @@ flowchart TB
 
 > **Mobile App** → External Gateway (WSS) → EMQX Chat
 > **On-premise / cross-VPC** → Internal Gateway (MQTT) → EMQX Chat
-> **Pod-to-pod inside K8s** → Service Discovery (ClusterIP/Headless) → Chat Engine
+> **Pod-to-pod inside K8s** → Service Discovery (ClusterIP/Headless) → Chat Service
 
 **External Gateway** — traffic publik, TLS termination, `*.example.com`
 **Internal Gateway** — traffic internal dari luar cluster, `*.internal.example.com`
@@ -203,7 +203,7 @@ flowchart TB
 
 ## Slide 6 — Chat Message Flow: EMQX + Webhook (5:00 - 6:30)
 
-**Chat: WebSocket → EMQX → Chat Engine via Webhook**
+**Chat: WebSocket → EMQX → Chat Service via Webhook**
 
 ```mermaid
 sequenceDiagram
@@ -268,7 +268,7 @@ spec:
 >
 > "Yang menarik adalah authorization. User connect lewat webhook auth. Tapi itu hanya membuktikan siapa mereka. Apakah mereka boleh publish atau subscribe ke channel tertentu? Itu diputuskan oleh webhook ke chat service."
 >
-> "ACL-nya strict: admin-only publish, user hanya subscribe ke channel miliknya. Setiap pesan yang masuk diteruskan ke chat engine untuk diproses dan disimpan."
+> "ACL-nya strict: admin-only publish, user hanya subscribe ke channel miliknya. Setiap pesan yang masuk diteruskan ke chat service untuk diproses dan disimpan."
 >
 > "Dan satu hal yang sering dilupakan: timeout harus selaras. Client heartbeat, gateway timeout, dan session TTL broker harus saling cocok. Kalau tidak, chat putus di tengah jalan."
 
@@ -323,7 +323,7 @@ flowchart TB
             CH_PVC["PVC: emqx-data<br/>1Gi"]
         end
 
-        subgraph CHAT_ENGINE["Chat Engine"]
+        subgraph CHAT_ENGINE["Chat Service"]
             CE_SVC["Service: chat-service<br/>ClusterIP:8080"]
             CE_DEP["Deployment: chat-service<br/>N replicas"]
         end
@@ -380,7 +380,7 @@ flowchart TB
 | EMQX Chat | External Gateway | WSS :443 | Mobile chat clients |
 | EMQX Chat | Internal Gateway | MQTT :1883 | On-premise / cross-VPC services |
 | EMQX Chat | Internal Gateway | HTTP :18083 | Monitoring dashboard |
-| Chat Engine | Service Discovery | ClusterIP :8080 | EMQX webhook processing |
+| Chat Service | Service Discovery | ClusterIP :8080 | EMQX webhook processing |
 | User / Notification | Service Discovery | ClusterIP | Chat supporting services |
 
 > **Speaker Notes:**
@@ -388,7 +388,7 @@ flowchart TB
 >
 > "External Gateway melayani mobile app — WSS untuk chat. Internal Gateway melayani on-premise dan monitoring — MQTT dan dashboard. Di dalam cluster, semua komunikasi pakai service discovery."
 >
-> "Perhatikan: EMQX berjalan sebagai StatefulSet 3 replicas dengan headless service untuk clustering via DNS SRV records. Chat engine terintegrasi via webhook — EMQX push pesan ke chat service lewat cluster-local service call. Tidak perlu lewat gateway."
+> "Perhatikan: EMQX berjalan sebagai StatefulSet 3 replicas dengan headless service untuk clustering via DNS SRV records. Chat service terintegrasi via webhook — EMQX push pesan ke chat service lewat cluster-local service call. Tidak perlu lewat gateway."
 
 ---
 
@@ -452,7 +452,7 @@ Platform Engineer @ Consumer Platform
 | Slide | Visual Style |
 |---|---|
 | 1 | Dark background, platform logo + KCD |
-| 2 | Simple diagram: App -> Gateway -> EMQX -> Chat Engine |
+| 2 | Simple diagram: App -> Gateway -> EMQX -> Chat Service |
 | 3 | Table with red highlights on problems |
 | 4 | Vertical flow diagram: GatewayClass -> Gateway -> HTTPRoute |
 | 5 | Two-column: External Gateway (left) + Internal Gateway (right) |
@@ -460,6 +460,23 @@ Platform Engineer @ Consumer Platform
 | 7 | Numbered list with icons |
 | 8 | Full architecture diagram (production) |
 | 9 | Contact info + QR code to talk repo |
+
+---
+
+## Sample Manifests
+
+Ready-to-adapt YAML in [`manifests/`](./manifests/) — hostnames, images, and names are placeholders (`example.com`), not production config.
+
+| File | Defines |
+|---|---|
+| `01-gateway-external.yaml` | External Gateway (`gke-l7-global-external-managed`) + HTTP→HTTPS redirect |
+| `02-gateway-internal.yaml` | Internal Gateway (`gke-l7-rilb`) — cross-VPC MQTT + EMQX dashboard |
+| `03-emqx-chat-service.yaml` | EMQX `ClusterIP` + headless Service (DNS SRV clustering) |
+| `04-httproute-chat-wss.yaml` | WSS HTTPRoute + `GCPBackendPolicy` (120s) + `HealthCheckPolicy` |
+| `05-chat-service.yaml` | Chat Service `stable` + `canary` Deployments and Services |
+| `06-httproute-chat-canary.yaml` | Canary HTTPRoute — header-based + weight-based split |
+
+Canary rollout is a weight change in file 06: `100/0 → 90/10 → 50/50 → 0/100`. Rollback = revert the weights. Internal testers reach the canary with header `x-canary: true`.
 
 ---
 

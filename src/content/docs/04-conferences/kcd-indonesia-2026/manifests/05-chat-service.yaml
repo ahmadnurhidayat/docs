@@ -1,0 +1,114 @@
+# ============================================================================
+# Chat Service — the webhook target EMQX calls for auth + message processing.
+# Two tracks for canary rollouts:
+#   - chat-service-stable : current production version
+#   - chat-service-canary : new version under test
+# Namespace: backend
+# ============================================================================
+# ---------- STABLE ----------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chat-service-stable
+  namespace: backend
+  labels:
+    app: chat-service
+    track: stable
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: chat-service
+      track: stable
+  template:
+    metadata:
+      labels:
+        app: chat-service
+        track: stable
+    spec:
+      containers:
+        - name: chat-service
+          image: registry.example.com/chat-service:1.8.0   # pinned version
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests: { cpu: "250m", memory: "256Mi" }
+            limits:   { cpu: "1",    memory: "512Mi" }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: chat-service-stable
+  namespace: backend
+  labels:
+    app: chat-service
+    track: stable
+spec:
+  type: ClusterIP
+  selector:
+    app: chat-service
+    track: stable
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+---
+# ---------- CANARY ----------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chat-service-canary
+  namespace: backend
+  labels:
+    app: chat-service
+    track: canary
+spec:
+  replicas: 1                       # small footprint while validating
+  selector:
+    matchLabels:
+      app: chat-service
+      track: canary
+  template:
+    metadata:
+      labels:
+        app: chat-service
+        track: canary
+    spec:
+      containers:
+        - name: chat-service
+          image: registry.example.com/chat-service:1.9.0-rc1   # new version
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests: { cpu: "250m", memory: "256Mi" }
+            limits:   { cpu: "1",    memory: "512Mi" }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: chat-service-canary
+  namespace: backend
+  labels:
+    app: chat-service
+    track: canary
+spec:
+  type: ClusterIP
+  selector:
+    app: chat-service
+    track: canary
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080

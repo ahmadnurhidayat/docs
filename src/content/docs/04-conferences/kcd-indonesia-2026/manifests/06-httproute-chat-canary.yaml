@@ -1,0 +1,49 @@
+# ============================================================================
+# Chat Service canary routing via Gateway API (no annotation hacks).
+#
+# Two complementary strategies in one HTTPRoute:
+#   1. Header-based  : internal testers with `x-canary: true` always hit canary
+#   2. Weight-based  : everyone else is split stable/canary by weight
+#
+# Progressive rollout — just change the weights and re-apply:
+#   Baseline   stable=100 canary=0     all traffic on old version
+#   Canary 10% stable=90  canary=10    watch error rate + webhook p99 latency
+#   Ramp 50%   stable=50  canary=50    validate under real load
+#   Promote    stable=0   canary=100   canary becomes stable
+# Rollback = revert the weights (effectively instant, no redeploy).
+#
+# Exposed internally (chat-service is called by EMQX webhook + other services).
+# ============================================================================
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: chat-service-canary
+  namespace: backend
+  labels:
+    gateway-access: internal
+spec:
+  parentRefs:
+    - name: prod-internal-gw
+      namespace: gateway-api
+      sectionName: dashboard        # HTTP listener on the internal gateway
+  hostnames:
+    - "chat-service.internal.example.com"
+  rules:
+    # Rule 1 — header match wins first: route testers straight to canary
+    - matches:
+        - headers:
+            - type: Exact
+              name: x-canary
+              value: "true"
+      backendRefs:
+        - name: chat-service-canary
+          port: 8080
+
+    # Rule 2 — default weighted split for everyone else
+    - backendRefs:
+        - name: chat-service-stable
+          port: 8080
+          weight: 90
+        - name: chat-service-canary
+          port: 8080
+          weight: 10

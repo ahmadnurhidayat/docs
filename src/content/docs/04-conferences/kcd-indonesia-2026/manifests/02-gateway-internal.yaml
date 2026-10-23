@@ -1,0 +1,44 @@
+# ============================================================================
+# Internal Gateway — cross-VPC / on-premise MQTT + EMQX dashboard
+# GatewayClass: gke-l7-rilb (GKE L7 Regional Internal LB)
+# Owner: Platform team. Not reachable from the public internet.
+# ============================================================================
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: prod-internal-gw
+  namespace: gateway-api
+  labels:
+    app.kubernetes.io/part-of: chat-platform
+    gateway.scope: internal
+  annotations:
+    # Allow access from other regions/VPCs via the regional internal LB
+    networking.gke.io/internal-load-balancer-allow-global-access: "true"
+spec:
+  gatewayClassName: gke-l7-rilb
+  listeners:
+    # MQTT :1883 — native MQTT for cross-VPC / on-prem services
+    - name: mqtt
+      protocol: TCP
+      port: 1883
+      allowedRoutes:
+        kinds:
+          - kind: TCPRoute
+        namespaces:
+          from: Selector
+          selector:
+            matchLabels:
+              gateway-access: "internal"
+    # HTTP :18083 — EMQX dashboard / management for monitoring
+    - name: dashboard
+      protocol: HTTP
+      port: 18083
+      hostname: "dashboard-emqx.internal.example.com"
+      allowedRoutes:
+        kinds:
+          - kind: HTTPRoute
+        namespaces:
+          from: Selector
+          selector:
+            matchLabels:
+              gateway-access: "internal"
